@@ -15,23 +15,21 @@ parser.add_argument('--model_path', default='train_results/trained_models/epoch_
 FLAGS = parser.parse_args()
 
 # DEFAULT SETTINGS
-pretrained_model_path = FLAGS.model_path # os.path.join(BASE_DIR, './pretrained_model/model.ckpt')
+pretrained_model_path = FLAGS.model_path 
 hdf5_data_dir = os.path.join(BASE_DIR, './hdf5_data')
 ply_data_dir = os.path.join(BASE_DIR, './PartAnnotation')
 gpu_to_use = 0
 output_dir = os.path.join(BASE_DIR, './test_results')
-output_verbose = False   # If true, output all color-coded part segmentation obj files
+output_verbose = False  
 
 # MAIN SCRIPT
-point_num = 3000            # the max number of points in the all testing data shapes
+point_num = 3000            
 batch_size = 1
 
 test_file_list = os.path.join(BASE_DIR, 'testing_ply_file_list.txt')
 
-# [["02691156", 1], ...]
-oid2cpid = json.load(open(os.path.join(hdf5_data_dir, 'overallid_to_catid_partid.json'), 'r')) # [[0267xxx, 1],...]
+oid2cpid = json.load(open(os.path.join(hdf5_data_dir, 'overallid_to_catid_partid.json'), 'r')) 
 
-# {"02691156": [1, 2, 3, 4], ...}
 object2setofoid = {}
 for idx in range(len(oid2cpid)):
   objid, pid = oid2cpid[idx]
@@ -39,13 +37,12 @@ for idx in range(len(oid2cpid)):
     object2setofoid[objid] = []
   object2setofoid[objid].append(idx)
 
-# 
 all_obj_cat_file = os.path.join(hdf5_data_dir, 'all_object_categories.txt')
 fin = open(all_obj_cat_file, 'r')
 lines = [line.rstrip() for line in fin.readlines()]
-objcats = [line.split()[1] for line in lines] # ['02691156', ...]
-objnames = [line.split()[0] for line in lines] # ['airplane', ...]
-on2oid = {objcats[i]:i for i in range(len(objcats))} # {'02691156':0, ...}
+objcats = [line.split()[1] for line in lines] 
+objnames = [line.split()[0] for line in lines] 
+on2oid = {objcats[i]:i for i in range(len(objcats))} 
 fin.close()
 
 color_map_file = os.path.join(hdf5_data_dir, 'part_color_mapping.json')
@@ -54,7 +51,6 @@ color_map = json.load(open(color_map_file, 'r'))
 NUM_OBJ_CATS = 16
 NUM_PART_CATS = 50
 
-# {"03642806_2": 29, ...}
 cpid2oid = json.load(open(os.path.join(hdf5_data_dir, 'catid_partid_to_overallid.json'), 'r'))
 
 def printout(flog, data):
@@ -133,17 +129,12 @@ def predict():
     pointclouds_ph, input_label_ph = placeholder_inputs()
     is_training_ph = tf.placeholder(tf.bool, shape=())
 
-    # simple model
     seg_pred = model.get_model(pointclouds_ph, input_label_ph, \
         cat_num=NUM_OBJ_CATS, part_num=NUM_PART_CATS, is_training=is_training_ph, \
         batch_size=batch_size, num_point=point_num, weight_decay=0.0, bn_decay=None)
     
-  # Add ops to save and restore all the variables.
   saver = tf.train.Saver()
 
-  # Later, launch the model, use the saver to restore variables from disk, and
-  # do some work with the model.
-  
   config = tf.ConfigProto()
   config.gpu_options.allow_growth = True
   config.allow_soft_placement = True
@@ -154,13 +145,10 @@ def predict():
 
     flog = open(os.path.join(output_dir, 'log.txt'), 'a')
 
-    # Restore variables from disk.
     printout(flog, 'Loading model %s' % pretrained_model_path)
     saver.restore(sess, pretrained_model_path)
     printout(flog, 'Model restored.')
     
-    # Note: the evaluation for the model with BN has to have some statistics
-    # Using some test datas as the statistics
     batch_data = np.zeros([batch_size, point_num, 3]).astype(np.float32)
 
     total_acc = 0.0
@@ -199,10 +187,8 @@ def predict():
       seg_pred_res = sess.run(seg_pred, feed_dict={
             pointclouds_ph: batch_data,
             input_label_ph: cur_label_one_hot, 
-            is_training_ph: is_training,
-          })
+            is_training_ph: is_training})
 
-      
       seg_pred_res = seg_pred_res[0, ...]
 
       iou_oids = object2setofoid[objcats[cur_gt_label]]
@@ -265,7 +251,6 @@ def predict():
             str(total_per_cat_acc[cat_idx] / total_per_cat_seen[cat_idx]))
         printout(flog, '\t ' + objcats[cat_idx] + ' IoU: '+ \
             str(total_per_cat_iou[cat_idx] / total_per_cat_seen[cat_idx]))
-
-        
+    
 with tf.Graph().as_default():
   predict()
