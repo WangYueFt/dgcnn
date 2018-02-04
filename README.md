@@ -1,5 +1,5 @@
 ## Dynamic Graph CNN for Learning on Point Clouds
-This is the implementation of DGCNN and heavily based on PointNet <a href="https://github.com/charlesq34/pointnet" target="_blank">
+This is the implementation of DGCNN and heavily based on  <a href="https://github.com/charlesq34/pointnet" target="_blank"> https://github.com/charlesq34/pointnet </a>
 
 ### Classification
 1. python train.py
@@ -14,3 +14,6 @@ Please cite this paper if you want to use it in your work,
 	  journal={arXiv preprint arXiv:1801.07829},
 	  year={2018}
 	}
+
+### License
+MIT License
