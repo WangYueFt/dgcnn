@@ -1,10 +1,6 @@
-## Run part segmentation experiments
+## Part segmentation
 
-### Requirements
-
-2 GPUs (each with 12 GB memory) for distributed training.
-
-### Data preparation 
+### Dataset 
 
 Load the data for part segmentation.
 
@@ -12,9 +8,9 @@ Load the data for part segmentation.
 sh +x download_data.sh
 ```
 
-### Training 
+### Train
 
-Train the model using 2 GPUs. 
+Train the model on 2 GPUs, each with 12 GB memeory. 
 
 ```
 python train_multi_gpu.py
@@ -22,15 +18,13 @@ python train_multi_gpu.py
 
 Model parameters are saved every 10 epochs in "train_results/trained_models/".
 
-### Testing
+### Evaluation
 
-To test the model parameter set saved after epoch n, 
+To evaluate the model saved after epoch n, 
 
 ```
 python test.py --model_path train_results/trained_models/epoch_n.ckpt
 ```
-
-n = 0, 10, 20, ..., 190, 200.
 
 For example, if we want to test the model saved after 160 epochs, 
 
