@@ -2,6 +2,8 @@
 
 Author: Charles R. Qi
 Date: November 2016
+
+Upadted by Yue Wang and Yongbin Sun
 """
 
 import numpy as np
