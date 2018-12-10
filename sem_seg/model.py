@@ -23,7 +23,7 @@ def get_model(point_cloud, is_training, bn_decay=None):
   num_point = point_cloud.get_shape()[1].value
   input_image = tf.expand_dims(point_cloud, -1)
 
-  k = 30
+  k = 20
 
   adj = tf_util.pairwise_distance(point_cloud[:, :, 6:])
   nn_idx = tf_util.knn(adj, k=k) # (batch, num_points, k)
@@ -31,76 +31,68 @@ def get_model(point_cloud, is_training, bn_decay=None):
 
   out1 = tf_util.conv2d(edge_feature, 64, [1,1],
                        padding='VALID', stride=[1,1],
-                       bn=True, is_training=is_training,
+                       bn=True, is_training=is_training, weight_decay=weight_decay,
                        scope='adj_conv1', bn_decay=bn_decay, is_dist=True)
   
   out2 = tf_util.conv2d(out1, 64, [1,1],
                        padding='VALID', stride=[1,1],
-                       bn=True, is_training=is_training,
+                       bn=True, is_training=is_training, weight_decay=weight_decay,
                        scope='adj_conv2', bn_decay=bn_decay, is_dist=True)
 
-  net_max_1 = tf.reduce_max(out2, axis=-2, keep_dims=True)
-  net_mean_1 = tf.reduce_mean(out2, axis=-2, keep_dims=True)
+  net_1 = tf.reduce_max(out2, axis=-2, keep_dims=True)
 
-  out3 = tf_util.conv2d(tf.concat([net_max_1, net_mean_1], axis=-1), 64, [1,1],
+
+
+  adj = tf_util.pairwise_distance(net_1)
+  nn_idx = tf_util.knn(adj, k=k)
+  edge_feature = tf_util.get_edge_feature(net_1, nn_idx=nn_idx, k=k)
+
+  out3 = tf_util.conv2d(edge_feature, 64, [1,1],
                        padding='VALID', stride=[1,1],
-                       bn=True, is_training=is_training,
+                       bn=True, is_training=is_training, weight_decay=weight_decay,
                        scope='adj_conv3', bn_decay=bn_decay, is_dist=True)
 
-  adj = tf_util.pairwise_distance(tf.squeeze(out3, axis=-2))
-  nn_idx = tf_util.knn(adj, k=k)
-  edge_feature = tf_util.get_edge_feature(out3, nn_idx=nn_idx, k=k)
-
-  out4 = tf_util.conv2d(edge_feature, 64, [1,1],
+  out4 = tf_util.conv2d(out3, 64, [1,1],
                        padding='VALID', stride=[1,1],
-                       bn=True, is_training=is_training,
+                       bn=True, is_training=is_training, weight_decay=weight_decay,
                        scope='adj_conv4', bn_decay=bn_decay, is_dist=True)
   
-  net_max_2 = tf.reduce_max(out4, axis=-2, keep_dims=True)
-  net_mean_2 = tf.reduce_mean(out4, axis=-2, keep_dims=True)
+  net_2 = tf.reduce_max(out4, axis=-2, keep_dims=True)
+  
+  
 
-  out5 = tf_util.conv2d(tf.concat([net_max_2, net_mean_2], axis=-1), 64, [1,1],
+  adj = tf_util.pairwise_distance(net_2)
+  nn_idx = tf_util.knn(adj, k=k)
+  edge_feature = tf_util.get_edge_feature(net_2, nn_idx=nn_idx, k=k)
+
+  out5 = tf_util.conv2d(edge_feature, 64, [1,1],
                        padding='VALID', stride=[1,1],
-                       bn=True, is_training=is_training,
+                       bn=True, is_training=is_training, weight_decay=weight_decay,
                        scope='adj_conv5', bn_decay=bn_decay, is_dist=True)
 
-  adj = tf_util.pairwise_distance(tf.squeeze(out5, axis=-2))
-  nn_idx = tf_util.knn(adj, k=k)
-  edge_feature = tf_util.get_edge_feature(out5, nn_idx=nn_idx, k=k)
+  # out6 = tf_util.conv2d(out5, 64, [1,1],
+  #                      padding='VALID', stride=[1,1],
+  #                      bn=True, is_training=is_training, weight_decay=weight_decay,
+  #                      scope='adj_conv6', bn_decay=bn_decay, is_dist=True)
 
-  out6 = tf_util.conv2d(edge_feature, 64, [1,1],
-                       padding='VALID', stride=[1,1],
-                       bn=True, is_training=is_training,
-                       scope='adj_conv6', bn_decay=bn_decay, is_dist=True)
-  
-  net_max_3 = tf.reduce_max(out6, axis=-2, keep_dims=True)
-  net_mean_3 = tf.reduce_mean(out6, axis=-2, keep_dims=True)
+  net_3 = tf.reduce_max(out5, axis=-2, keep_dims=True)
 
-  out7 = tf_util.conv2d(tf.concat([net_max_3, net_mean_3], axis=-1), 64, [1,1],
+
+
+  out7 = tf_util.conv2d(tf.concat([net_1, net_2, net_3], axis=-1), 1024, [1, 1], 
                        padding='VALID', stride=[1,1],
                        bn=True, is_training=is_training,
                        scope='adj_conv7', bn_decay=bn_decay, is_dist=True)
 
-  out8 = tf_util.conv2d(tf.concat([out3, out5, out7], axis=-1), 1024, [1, 1], 
-                       padding='VALID', stride=[1,1],
-                       bn=True, is_training=is_training,
-                       scope='adj_conv8', bn_decay=bn_decay, is_dist=True)
+  out_max = tf_util.max_pool2d(out7, [num_point, 1], padding='VALID', scope='maxpool')
 
-  out_max = tf_util.max_pool2d(out8, [num_point,1], padding='VALID', scope='maxpool')
 
   expand = tf.tile(out_max, [1, num_point, 1, 1])
 
   concat = tf.concat(axis=3, values=[expand, 
-                                     net_max_1,
-                                     net_mean_1,
-                                     out3,
-                                     net_max_2,
-                                     net_mean_2,
-                                     out5,
-                                     net_max_3,
-                                     net_mean_3,
-                                     out7,
-                                     out8])
+                                     net_1,
+                                     net_2,
+                                     net_3])
 
   # CONV 
   net = tf_util.conv2d(concat, 512, [1,1], padding='VALID', stride=[1,1],
