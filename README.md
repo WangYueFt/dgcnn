@@ -10,6 +10,9 @@ We propose a new neural network module dubbed EdgeConv suitable for CNN-based hi
 
 Further information please contact [Yue Wang](https://www.csail.mit.edu/person/yue-wang) and [Yongbin Sun](https://autoid.mit.edu/people-2).
 
+## Other Implementations
+* [pytorch-dgcnn](https://rusty1s.github.io/pytorch_geometric/build/html/modules/nn.html#torch_geometric.nn.conv.EdgeConv)
+
 ## Requirements
 * [TensorFlow](https://www.tensorflow.org/)
 
