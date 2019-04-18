@@ -32,9 +32,9 @@ Please cite this paper if you want to use it in your work,
 
 	@article{dgcnn,
 	  title={Dynamic Graph CNN for Learning on Point Clouds},
-	  author={Yue Wang, Yongbin Sun, Ziwei Liu, Sanjay E. Sarma, Michael M. Bronstein, Justin M. Solomon},
-	  journal={arXiv preprint arXiv:1801.07829},
-	  year={2018}
+	  author={Wang, Yue and Sun, Yongbin and Liu, Ziwei and Sarma, Sanjay E. and Bronstein, Michael M. and Solomon, Justin M.},
+	  journal={ACM Transactions on Graphics (TOG)},
+	  year={2019}
 	}
 
 ## License
