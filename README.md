@@ -4,28 +4,22 @@ We propose a new neural network module dubbed EdgeConv suitable for CNN-based hi
 [[Project]](https://liuziwei7.github.io/projects/DGCNN) [[Paper]](https://arxiv.org/abs/1801.07829)     
 
 ## Overview
-`DGCNN` is the author's re-implementation of Dynamic Graph CNN, which achieves state-of-the-art performance on point-cloud-related high-level tasks including category classification, semantic segmentation and part segmentation. 
+`DGCNN` is the author's re-implementation of Dynamic Graph CNN, which achieves state-of-the-art performance on point-cloud-related high-level tasks including category classification, semantic segmentation and part segmentation.
 
-<img src='./misc/demo_teaser.png' width=800>
+<img src='./tensorflow/misc/demo_teaser.png' width=800>
 
 Further information please contact [Yue Wang](https://www.csail.mit.edu/person/yue-wang) and [Yongbin Sun](https://autoid.mit.edu/people-2).
 
+## Author's Implementations
+
+The classification experiments in our paper are done with the pytorch implementation.
+
+* [tensorflow-dgcnn](./tensorflow)
+* [pytorch-dgcnn](./pytorch)
+
 ## Other Implementations
-* [pytorch-dgcnn](https://rusty1s.github.io/pytorch_geometric/build/html/modules/nn.html#torch_geometric.nn.conv.EdgeConv)
+* [pytorch-geometric](https://rusty1s.github.io/pytorch_geometric/build/html/modules/nn.html#torch_geometric.nn.conv.EdgeConv)
 
-## Requirements
-* [TensorFlow](https://www.tensorflow.org/)
-
-## Point Cloud Classification
-* Run the training script:
-``` bash
-python train.py
-```
-* Run the evaluation script after training finished:
-``` bash
-python evalutate.py
-
-```
 
 ## Citation
 Please cite this paper if you want to use it in your work,

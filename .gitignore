@@ -1,4 +1,4 @@
 data/
 log/
 *.pyc
-
+.DS_Store
