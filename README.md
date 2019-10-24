@@ -18,7 +18,7 @@ The classification experiments in our paper are done with the pytorch implementa
 * [pytorch-dgcnn](./pytorch)
 
 ## Other Implementations
-* [pytorch-geometric](https://rusty1s.github.io/pytorch_geometric/build/html/modules/nn.html#torch_geometric.nn.conv.EdgeConv)
+* [pytorch-geometric](https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html#torch_geometric.nn.conv.EdgeConv)
 
 
 ## Citation
@@ -35,4 +35,4 @@ Please cite this paper if you want to use it in your work,
 MIT License
 
 ## Acknowledgement
-This code is heavily borrowed from [PointNet](https://github.com/charlesq34/pointnet).
+The structure of this codebase is borrowed from [PointNet](https://github.com/charlesq34/pointnet).
