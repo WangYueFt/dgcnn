@@ -19,6 +19,7 @@ The classification experiments in our paper are done with the pytorch implementa
 
 ## Other Implementations
 * [pytorch-geometric](https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html#torch_geometric.nn.conv.EdgeConv)
+* [pytorch-dgcnn](https://github.com/AnTao97/dgcnn.pytorch) (This implementation on S3DIS achieves significant better results than our tensorflow implementation)
 
 
 ## Citation
