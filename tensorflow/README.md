@@ -10,6 +10,6 @@ python train.py
 * Run the evaluation script after training finished:
 
 ``` bash
-python evalutate.py
+python evaluate.py
 
 ```
