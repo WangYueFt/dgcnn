@@ -2,3 +2,5 @@ data/
 log/
 *.pyc
 .DS_Store
+*.h5
+RUNS/*
