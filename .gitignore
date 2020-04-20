@@ -3,4 +3,4 @@ log/
 *.pyc
 .DS_Store
 *.h5
-RUNS/*
+sem_seg/RUNS/
