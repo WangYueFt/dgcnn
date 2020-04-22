@@ -17,7 +17,7 @@ import tf_util
 from model import *
 
 ''' 
-python train.py --path_data /home/miguel/Desktop/data_test/set/ --cls 2 --log_dir RUNS/test --batch_size 10 --max_epoch 50 
+python3 train.py --path_data /home/miguel/Desktop/pipes/data/valve_test/set/ --cls 5 --log_dir RUNS/test --batch_size 4 --max_epoch 50
 '''
 
 parser = argparse.ArgumentParser()
