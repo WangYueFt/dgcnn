@@ -31,12 +31,12 @@ def get_model(point_cloud, is_training, bn_decay=None):
 
   out1 = tf_util.conv2d(edge_feature, 64, [1,1],
                        padding='VALID', stride=[1,1],
-                       bn=True, is_training=is_training, weight_decay=weight_decay,
+                       bn=True, is_training=is_training, weight_decay=0.0,
                        scope='adj_conv1', bn_decay=bn_decay, is_dist=True)
   
   out2 = tf_util.conv2d(out1, 64, [1,1],
                        padding='VALID', stride=[1,1],
-                       bn=True, is_training=is_training, weight_decay=weight_decay,
+                       bn=True, is_training=is_training, weight_decay=0.0,
                        scope='adj_conv2', bn_decay=bn_decay, is_dist=True)
 
   net_1 = tf.reduce_max(out2, axis=-2, keep_dims=True)
@@ -49,12 +49,12 @@ def get_model(point_cloud, is_training, bn_decay=None):
 
   out3 = tf_util.conv2d(edge_feature, 64, [1,1],
                        padding='VALID', stride=[1,1],
-                       bn=True, is_training=is_training, weight_decay=weight_decay,
+                       bn=True, is_training=is_training, weight_decay=0.0,
                        scope='adj_conv3', bn_decay=bn_decay, is_dist=True)
 
   out4 = tf_util.conv2d(out3, 64, [1,1],
                        padding='VALID', stride=[1,1],
-                       bn=True, is_training=is_training, weight_decay=weight_decay,
+                       bn=True, is_training=is_training, weight_decay=0.0,
                        scope='adj_conv4', bn_decay=bn_decay, is_dist=True)
   
   net_2 = tf.reduce_max(out4, axis=-2, keep_dims=True)
@@ -67,12 +67,12 @@ def get_model(point_cloud, is_training, bn_decay=None):
 
   out5 = tf_util.conv2d(edge_feature, 64, [1,1],
                        padding='VALID', stride=[1,1],
-                       bn=True, is_training=is_training, weight_decay=weight_decay,
+                       bn=True, is_training=is_training, weight_decay=0.0,
                        scope='adj_conv5', bn_decay=bn_decay, is_dist=True)
 
   # out6 = tf_util.conv2d(out5, 64, [1,1],
   #                      padding='VALID', stride=[1,1],
-  #                      bn=True, is_training=is_training, weight_decay=weight_decay,
+  #                      bn=True, is_training=is_training, weight_decay=0.0,
   #                      scope='adj_conv6', bn_decay=bn_decay, is_dist=True)
 
   net_3 = tf.reduce_max(out5, axis=-2, keep_dims=True)
