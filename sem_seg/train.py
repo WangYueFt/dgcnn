@@ -23,7 +23,7 @@ python train.py --path_data /home/miguel/Desktop/data_test/set/ --cls 2 --log_di
 parser = argparse.ArgumentParser()
 parser.add_argument('--path_data', help='folder with train test data')
 parser.add_argument('--cls', type=int, help='number of classes')
-parser.add_argument('--num_gpu', type=int, default=0, help='the number of GPUs to use [default: 2]')
+parser.add_argument('--num_gpu', type=int, default=1, help='the number of GPUs to use [default: 2]')
 parser.add_argument('--log_dir', default='log', help='Log dir [default: log]')
 parser.add_argument('--num_point', type=int, default=4096, help='Point number [default: 4096]')
 parser.add_argument('--max_epoch', type=int, default=101, help='Epoch to run [default: 50]')
@@ -264,21 +264,16 @@ def train_one_epoch(sess, ops, train_writer):
       print('Current batch/total batch num: %d/%d'%(batch_idx,num_batches))
     start_idx_0 = batch_idx * BATCH_SIZE
     end_idx_0 = (batch_idx+1) * BATCH_SIZE
-    start_idx_1 = (batch_idx+1) * BATCH_SIZE
-    end_idx_1 = (batch_idx+2) * BATCH_SIZE
     
     
     feed_dict = {ops['pointclouds_phs'][0]: current_data[start_idx_0:end_idx_0, :, :],
-                 ops['pointclouds_phs'][1]: current_data[start_idx_1:end_idx_1, :, :],
                  ops['labels_phs'][0]: current_label[start_idx_0:end_idx_0],
-                 ops['labels_phs'][1]: current_label[start_idx_1:end_idx_1],
-                 ops['is_training_phs'][0]: is_training,
-                 ops['is_training_phs'][1]: is_training}
+                 ops['is_training_phs'][0]: is_training}
     summary, step, _, loss_val, pred_val = sess.run([ops['merged'], ops['step'], ops['train_op'], ops['loss'], ops['pred']],
                      feed_dict=feed_dict)
     train_writer.add_summary(summary, step)
     pred_val = np.argmax(pred_val, 2)
-    correct = np.sum(pred_val == current_label[start_idx_1:end_idx_1])
+    correct = np.sum(pred_val == current_label[start_idx_0:end_idx_0])
     total_correct += correct
     total_seen += (BATCH_SIZE*NUM_POINT)
     loss_sum += loss_val
