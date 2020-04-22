@@ -44,7 +44,6 @@ NUM_POINT = parsed_args.num_point
 MAX_EPOCH = parsed_args.max_epoch
 NUM_POINT = parsed_args.num_point
 BASE_LEARNING_RATE = parsed_args.learning_rate
-
 MOMENTUM = parsed_args.momentum
 OPTIMIZER = parsed_args.optimizer
 DECAY_STEP = parsed_args.decay_step
@@ -66,7 +65,6 @@ BN_DECAY_CLIP = 0.99
 
 HOSTNAME = socket.gethostname()
 
-
 path_train = os.path.join(path_data, 'train/h5')
 files_train = provider.getDataFiles(os.path.join(path_train, 'files.txt'))
 filelist_train = provider.getDataFiles(os.path.join(path_train, 'filelist.txt'))
@@ -82,7 +80,6 @@ for h5_filename in files_train:
 train_data = np.concatenate(data_batch_list, 0)
 train_label = np.concatenate(label_batch_list, 0)
 print(train_data.shape, train_label.shape)
-
 
 path_test = os.path.join(path_data, 'test/h5')
 files_test = provider.getDataFiles(os.path.join(path_test, 'files.txt'))
@@ -161,7 +158,7 @@ def average_gradients(tower_grads):
   return average_grads
 
 def train():
-  with tf.Graph().as_default(), tf.device('/cpu:0'):
+  with tf.Graph().as_default(), tf.device('/gpu:0'):
     batch = tf.Variable(0, trainable=False)
     
     bn_decay = get_bn_decay(batch)
@@ -178,7 +175,7 @@ def train():
     is_training_phs =[]
 
     with tf.variable_scope(tf.get_variable_scope()):
-      for i in xrange(parsed_args.num_gpu):
+      for i in range(parsed_args.num_gpu):
         with tf.device('/gpu:%d' % i):
           with tf.name_scope('%s_%d' % (TOWER_NAME, i)) as scope:
       
