@@ -102,14 +102,14 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
   total_seen_class = [0 for _ in range(NUM_CLASSES)]
   total_correct_class = [0 for _ in range(NUM_CLASSES)]
 
-  if FLAGS.visu:
+  if parsed_args.visu:
     fout = open(os.path.join(DUMP_DIR, os.path.basename(room_path)[:-4]+'_pred.obj'), 'w')
     fout_gt = open(os.path.join(DUMP_DIR, os.path.basename(room_path)[:-4]+'_gt.obj'), 'w')
     fout_real_color = open(os.path.join(DUMP_DIR, os.path.basename(room_path)[:-4]+'_real_color.obj'), 'w')
   fout_data_label = open(out_data_label_filename, 'w')
   fout_gt_label = open(out_gt_label_filename, 'w')
   
-  current_data, current_label = indoor3d_util.room2blocks_wrapper_normalized(room_path, NUM_POINT)
+  current_data, current_label = indoor3d_util.room2blocks_wrapper_normalized(room_path, NUM_POINT, block_size=0.1, stride=0.1)
   current_data = current_data[:,0:NUM_POINT,:]
   current_label = np.squeeze(current_label)
   # Get room dimension..
@@ -135,7 +135,7 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
     loss_val, pred_val = sess.run([ops['loss'], ops['pred_softmax']],
                     feed_dict=feed_dict)
 
-    if FLAGS.no_clutter:
+    if parsed_args.no_clutter:
       pred_label = np.argmax(pred_val[:,:,0:12], 2) # BxN
     else:
       pred_label = np.argmax(pred_val, 2) # BxN
@@ -176,7 +176,7 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
   log_string('eval accuracy: %f'% (total_correct / float(total_seen)))
   fout_data_label.close()
   fout_gt_label.close()
-  if FLAGS.visu:
+  if parsed_args.visu:
     fout.close()
     fout_gt.close()
   return total_correct, total_seen
