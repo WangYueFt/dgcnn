@@ -1,35 +1,40 @@
 import argparse
 import os
 import sys
+import re
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 sys.path.append(BASE_DIR)
 from model import *
 import indoor3d_util
 
+"python batch_inference.py --path_data a/b/c --path_cls meta/class_or.txt --model_path RUNS/test_indoor --dump_dir RUNS/test_indoor --visu"
+
 parser = argparse.ArgumentParser()
+parser.add_argument('--path_data', help='folder with train test data')
+parser.add_argument('--path_cls', help='path to classes txt.')
 parser.add_argument('--gpu', type=int, default=0, help='GPU to use [default: GPU 0]')
 parser.add_argument('--batch_size', type=int, default=1, help='Batch Size during training [default: 1]')
 parser.add_argument('--num_point', type=int, default=4096, help='Point number [default: 4096]')
 parser.add_argument('--model_path', required=True, help='model checkpoint file path')
-parser.add_argument('--dump_dir', required=True, help='dump folder path')
-parser.add_argument('--output_filelist', required=True, help='TXT filename, filelist, each line is an output for a room')
-parser.add_argument('--room_data_filelist', required=True, help='TXT filename, filelist, each line is a test room data label file.')
 parser.add_argument('--no_clutter', action='store_true', help='If true, donot count the clutter class')
 parser.add_argument('--visu', action='store_true', help='Whether to output OBJ file for prediction visualization.')
-FLAGS = parser.parse_args()
+parsed_args = parser.parse_args()
 
-BATCH_SIZE = FLAGS.batch_size
-NUM_POINT = FLAGS.num_point
-MODEL_PATH = FLAGS.model_path
-GPU_INDEX = FLAGS.gpu
-DUMP_DIR = FLAGS.dump_dir
+path_data = parsed_args.path_data
+path_cls = parsed_args.path_cls
+NUM_CLASSES = len(open(path_cls).readlines(  ))
+
+BATCH_SIZE = parsed_args.batch_size
+NUM_POINT = parsed_args.num_point
+MODEL_PATH = os.path.join(parsed_args.model_path, "model.ckpt")
+GPU_INDEX = parsed_args.gpu
+DUMP_DIR = os.path.join(parsed_args.model_path, "dump")
 if not os.path.exists(DUMP_DIR): os.mkdir(DUMP_DIR)
 LOG_FOUT = open(os.path.join(DUMP_DIR, 'log_evaluate.txt'), 'w')
-LOG_FOUT.write(str(FLAGS)+'\n')
-ROOM_PATH_LIST = [os.path.join(ROOT_DIR,line.rstrip()) for line in open(FLAGS.room_data_filelist)]
+LOG_FOUT.write(str(parsed_args)+'\n')
 
-NUM_CLASSES = 13
+path_test = os.path.join(path_data, 'test/npy')
 
 def log_string(out_str):
   LOG_FOUT.write(out_str+'\n')
@@ -66,19 +71,25 @@ def evaluate():
   
   total_correct = 0
   total_seen = 0
-  fout_out_filelist = open(FLAGS.output_filelist, 'w')
-  for room_path in ROOM_PATH_LIST:
-    out_data_label_filename = os.path.basename(room_path)[:-4] + '_pred.txt'
-    out_data_label_filename = os.path.join(DUMP_DIR, out_data_label_filename)
-    out_gt_label_filename = os.path.basename(room_path)[:-4] + '_gt.txt'
-    out_gt_label_filename = os.path.join(DUMP_DIR, out_gt_label_filename)
-   
-    print(room_path, out_data_label_filename)
-    # Evaluate room one by one.
-    a, b = eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_filename)
-    total_correct += a
-    total_seen += b
-    fout_out_filelist.write(out_data_label_filename+'\n')
+
+  output_filelist = os.path.join(DUMP_DIR, "output_filelist.txt")
+  fout_out_filelist = open(output_filelist, 'w')
+
+  path_test = os.path.join(path_data, 'test/npy')
+
+  for root, dirs, files in os.walk(path_test):  # for each folder
+    for file in enumerate(files):  # for each file in the folder
+      if re.search("\.(npy)$", file[1]):  # if the file is an image
+        filepath = os.path.join(root, file[1])  # file path
+        out_data_label_filename = os.path.basename(filepath)[:-4] + '_pred.txt'
+        out_data_label_filename = os.path.join(DUMP_DIR, out_data_label_filename)
+        out_gt_label_filename = os.path.basename(filepath)[:-4] + '_gt.txt'
+        out_gt_label_filename = os.path.join(DUMP_DIR, out_gt_label_filename)
+        print(filepath, out_data_label_filename)
+        a, b = eval_one_epoch(sess, ops, filepath, out_data_label_filename, out_gt_label_filename)
+        total_correct += a
+        total_seen += b
+        fout_out_filelist.write(out_data_label_filename+'\n')
   fout_out_filelist.close()
   log_string('all room eval accuracy: %f'% (total_correct / float(total_seen)))
 
@@ -138,12 +149,16 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
       pts[:,8] *= max_room_z
       pts[:,3:6] *= 255.0
       pred = pred_label[b, :]
+
       for i in range(NUM_POINT):
-        color = indoor3d_util.g_label2color[pred[i]]
-        color_gt = indoor3d_util.g_label2color[current_label[start_idx+b, i]]
-        if FLAGS.visu:
+        g_classes, g_class2label, g_label2color = indoor3d_util.get_info_classes(path_cls)
+        color = g_label2color[pred[i]]
+        color_gt = g_label2color[current_label[start_idx+b, i]]
+
+        if parsed_args.visu:
           fout.write('v %f %f %f %d %d %d\n' % (pts[i,6], pts[i,7], pts[i,8], color[0], color[1], color[2]))
           fout_gt.write('v %f %f %f %d %d %d\n' % (pts[i,6], pts[i,7], pts[i,8], color_gt[0], color_gt[1], color_gt[2]))
+        
         fout_data_label.write('%f %f %f %d %d %d %f %d\n' % (pts[i,6], pts[i,7], pts[i,8], pts[i,3], pts[i,4], pts[i,5], pred_val[b,i,pred[i]], pred[i]))
         fout_gt_label.write('%d\n' % (l[i]))
     
