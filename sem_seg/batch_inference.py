@@ -7,6 +7,7 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 sys.path.append(BASE_DIR)
 from model import *
 import indoor3d_util
+import time
 
 "python batch_inference.py --path_data a/b/c --path_cls meta/class_or.txt --model_path RUNS/test_indoor --dump_dir RUNS/test_indoor --visu"
 
@@ -77,6 +78,8 @@ def evaluate():
 
   path_test = os.path.join(path_data, 'test/npy')
 
+  times = list()
+
   for root, dirs, files in os.walk(path_test):  # for each folder
     for file in enumerate(files):  # for each file in the folder
       if re.search("\.(npy)$", file[1]):  # if the file is an image
@@ -86,12 +89,28 @@ def evaluate():
         out_gt_label_filename = os.path.basename(filepath)[:-4] + '_gt.txt'
         out_gt_label_filename = os.path.join(DUMP_DIR, out_gt_label_filename)
         print(filepath, out_data_label_filename)
+
+        start = time.time()
+
         a, b = eval_one_epoch(sess, ops, filepath, out_data_label_filename, out_gt_label_filename)
+
+        done = time.time()
+        elapsed = done - start
+        times.append(elapsed)
+
         total_correct += a
         total_seen += b
         fout_out_filelist.write(out_data_label_filename+'\n')
   fout_out_filelist.close()
-  log_string('all room eval accuracy: %f'% (total_correct / float(total_seen)))
+
+  avg = sum(times) / len(times)
+  fps = 1 / avg
+
+  fout_out_filelist.close()
+  log_string('all room eval accuracy: %f' % (total_correct / float(total_seen)))
+  log_string('average inference time: %f' % avg)
+  log_string('fps: %f' % fps)
+
 
 def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_filename):
   error_cnt = 0
