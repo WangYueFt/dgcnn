@@ -46,16 +46,15 @@ def get_distance(p1,p2, diemnsions):
         d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2)+((p2[2]-p1[2])**2))
     return d
 
-def grow(data, idx, min_dist):
+def grow(data, points, min_dist):
 
     new_idx = list()
-    for n, i in enumerate(idx):
+    for n, p in enumerate(points):
 
-        progress(n, len(idx), status='growing')
-        sys.stdout.write('\n')
+        progress(n, len(points), status='growing')
 
-        p1 = data[i,0:3]
-        cls1 = data[i,3]
+        p1 = p[0:3]
+        cls1 = p[3]
         for j, point2 in enumerate(data):
             p2 = data[j,0:3]
             cls2 = data[j, 3]
@@ -65,8 +64,55 @@ def grow(data, idx, min_dist):
                 if d < min_dist:
                     new_idx.append(j)
 
-    new_idx = list(set(new_idx)-set(idx))
+    new_idx = list(set(new_idx))
+
     return new_idx
+
+
+def get_color(instance):
+
+    colors = [[0, 255, 0],
+              [0, 0, 255],
+              [255, 0, 0],
+              [255, 255, 0],
+              [255, 0, 255],
+              [0, 255, 255],
+              [0, 128, 0],
+              [0, 0, 128],
+              [128, 0, 0]]
+
+    n = int(instance/len(colors))
+    i = instance-(len(colors)*n)
+    color = colors[i-1]
+    return color
+
+
+def write_ply(data, path_out):
+
+    f = open(path_out, 'w')
+
+    f.write("ply" + '\n')
+    f.write("format ascii 1.0" + '\n')
+    f.write("comment VCGLIB generated" + '\n')
+    f.write("element vertex " + str(data.shape[0]) + '\n')
+    f.write("property float x" + '\n')
+    f.write("property float y" + '\n')
+    f.write("property float z" + '\n')
+    f.write("property uchar red" + '\n')
+    f.write("property uchar green" + '\n')
+    f.write("property uchar blue" + '\n')
+    f.write("property int class" + '\n')
+    f.write("property int inst" + '\n')
+    f.write("element face 0" + '\n')
+    f.write("property list uchar int vertex_indices" + '\n')
+    f.write("end_header" + '\n')
+
+    for row in range(data.shape[0]):
+        color = get_color(int(data[row, 4]))
+        line = ' '.join(map(str, data[row, :-2])) + ' ' + ' '.join(map(str, color)) + ' ' + str(int(data[row, 3]))+ ' ' + str(int(data[row, 4])) +'\n'
+        f.write(line)
+
+    f.close()
 
 def main():
 
@@ -80,8 +126,8 @@ def main():
     path_cls = parsed_args.path_cls  # get class txt path
     '''
 
-    path_run = "/home/miguel/Desktop/pipes/dgcnn/sem_seg/RUNS/valve_test_test/"
-    path_cls = "/home/miguel/Desktop/pipes/data/valve_test/classes.txt"
+    path_run = "/home/miguel/Desktop/pipes/pointnet/sem_seg/RUNS/numpoints256_test/"
+    path_cls = "/home/miguel/Desktop/pipes/data/valve/classes.txt"
 
     path_infer = os.path.join(path_run, 'dump')
 
@@ -105,22 +151,64 @@ def main():
         pred = np.delete(pred,[3,4,5,6],1)
         gt = np.delete(np.c_[pred,gt],3,1)
 
+        dels = [labels["floor"],labels["vessel"],labels["block"]]
+        for i in (dels):
+            gt = gt[gt[:,3] != i]
+            pred = pred[pred[:,3] != i]
+
         gt_instances = list()
+        pred_instances = list()
 
         gt_aux = gt.copy()
+        pred_aux = pred.copy()
+
+        n_inst = 1
 
         while gt_aux.size > 0:
-
-
             actual_idx = [0]
             actual_inst = gt_aux[actual_idx]
-            np.delete(gt_aux, actual_idx, axis=0)
-
+            inst = gt_aux[actual_idx]
+            gt_aux = np.delete(gt_aux, actual_idx, axis=0)
             while actual_idx:
-                actual_idx = grow(gt_aux, actual_idx, 0.1)
-                actual_inst = np.vstack([actual_inst, gt_aux[actual_idx]])
-                np.delete(gt_aux, actual_idx, axis=0)
-            gt_instances.append(actual_inst)
+                actual_idx = grow(gt_aux, actual_inst, 0.03)
+                actual_inst = gt_aux[actual_idx]
+                inst = np.vstack([inst, gt_aux[actual_idx]])
+                gt_aux = np.delete(gt_aux, actual_idx, axis=0)
+            inst = np.insert(inst, 4, n_inst, axis=1)
+            gt_instances.append(inst)
+            n_inst = n_inst + 1
+
+        n_inst = 1
+
+        while pred_aux.size > 0:
+            actual_idx = [0]
+            actual_inst = pred_aux[actual_idx]
+            inst = pred_aux[actual_idx]
+            pred_aux = np.delete(pred_aux, actual_idx, axis=0)
+            while actual_idx:
+                actual_idx = grow(pred_aux, actual_inst, 0.03)
+                actual_inst = pred_aux[actual_idx]
+                inst = np.vstack([inst, pred_aux[actual_idx]])
+                pred_aux = np.delete(pred_aux, actual_idx, axis=0)
+            inst = np.insert(inst, 4, n_inst, axis=1)
+            pred_instances.append(inst)
+            n_inst = n_inst + 1
+
+        sys.stdout.write('\n')
+        # create plys
+
+        data_gt = np.vstack(gt_instances)  # set instance number as data[...,5]
+        file_path_out = os.path.join(path_infer, name + "_gt_inst.ply")
+        write_ply(data_gt, file_path_out)
+
+        data_pred = np.vstack(pred_instances)  # set instance number as data[...,5]
+        file_path_out = os.path.join(path_infer, name + "_pred_inst.ply")
+        write_ply(data_pred, file_path_out)
+
+        z = 0
+    z = 1
+
+
 
 
 
