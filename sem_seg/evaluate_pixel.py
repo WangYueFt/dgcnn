@@ -125,12 +125,8 @@ def main():
             f.write(str_rec + '\n\n')
         f.close()
 
-
-        filepath = path_run + '/evaluation.xlsx'
-
-
+        filepath = path_run + '/evaluation_pixel.xlsx'
         df = pd.DataFrame.from_records(cnf_matrix, index=classes)
-        
         df.to_excel(filepath, header = classes, index_label = 'gt\pred')
 
 if __name__ == "__main__":
