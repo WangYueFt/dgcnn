@@ -39,14 +39,14 @@ def get_info_classes(cls_path):
 
     return classes, labels, label2color
 
-def get_distance(p1,p2, diemnsions):
-    if diemnsions == 2:
+def get_distance(p1,p2, dimensions):
+    if dimensions == 2:
         d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2))
-    if diemnsions == 3:
+    if dimensions == 3:
         d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2)+((p2[2]-p1[2])**2))
     return d
 
-def grow(data, points, min_dist):
+def grow(data, points, min_dist, dimensions):
 
     new_idx = list()
     for n, p in enumerate(points):
@@ -60,7 +60,7 @@ def grow(data, points, min_dist):
             cls2 = data[j, 3]
 
             if cls1 == cls2:
-                d = get_distance(p1,p2,2)
+                d = get_distance(p1,p2,dimensions)
                 if d < min_dist:
                     new_idx.append(j)
 
@@ -116,18 +116,20 @@ def write_ply(data, path_out):
 
 def main():
 
-    '''
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path_run', help='path to the folder.')
-    parser.add_argument('--path_cls', help='path to the folder.')
+    parser.add_argument('--path_run', help='path to the run folder.')
+    parser.add_argument('--path_cls', help='path to the class file.')
+    parser.add_argument('--dim', default=3, help='dimensions to calculate distance for growing (2 or 3).')
+    parser.add_argument('--rad', default=0.03, help='max radius for growing (2 or 3).')
+    parser.add_argument('--min_p', default=0, help='min points to not delete an instance')
+
     parsed_args = parser.parse_args(sys.argv[1:])
 
     path_run = parsed_args.path_run
     path_cls = parsed_args.path_cls  # get class txt path
-    '''
-
-    path_run = "/home/miguel/Desktop/pipes/pointnet/sem_seg/RUNS/numpoints256_test/"
-    path_cls = "/home/miguel/Desktop/pipes/data/valve/classes.txt"
+    dimensions = int(parsed_args.dim)
+    radius = float(parsed_args.rad)
+    min_p = int(parsed_args.min_p)
 
     path_infer = os.path.join(path_run, 'dump')
 
@@ -170,13 +172,14 @@ def main():
             inst = gt_aux[actual_idx]
             gt_aux = np.delete(gt_aux, actual_idx, axis=0)
             while actual_idx:
-                actual_idx = grow(gt_aux, actual_inst, 0.03)
+                actual_idx = grow(gt_aux, actual_inst, radius, dimensions)
                 actual_inst = gt_aux[actual_idx]
                 inst = np.vstack([inst, gt_aux[actual_idx]])
                 gt_aux = np.delete(gt_aux, actual_idx, axis=0)
-            inst = np.insert(inst, 4, n_inst, axis=1)
-            gt_instances.append(inst)
-            n_inst = n_inst + 1
+            if inst.shape[0] > min_p:
+                inst = np.insert(inst, 4, n_inst, axis=1)
+                gt_instances.append(inst)
+                n_inst = n_inst + 1
 
         n_inst = 1
 
@@ -186,13 +189,14 @@ def main():
             inst = pred_aux[actual_idx]
             pred_aux = np.delete(pred_aux, actual_idx, axis=0)
             while actual_idx:
-                actual_idx = grow(pred_aux, actual_inst, 0.03)
+                actual_idx = grow(pred_aux, actual_inst, radius, dimensions)
                 actual_inst = pred_aux[actual_idx]
                 inst = np.vstack([inst, pred_aux[actual_idx]])
                 pred_aux = np.delete(pred_aux, actual_idx, axis=0)
-            inst = np.insert(inst, 4, n_inst, axis=1)
-            pred_instances.append(inst)
-            n_inst = n_inst + 1
+            if inst.shape[0] > min_p:
+                inst = np.insert(inst, 4, n_inst, axis=1)
+                pred_instances.append(inst)
+                n_inst = n_inst + 1
 
         sys.stdout.write('\n')
         # create plys
@@ -205,8 +209,6 @@ def main():
         file_path_out = os.path.join(path_infer, name + "_pred_inst.ply")
         write_ply(data_pred, file_path_out)
 
-        z = 0
-    z = 1
 
 
 
