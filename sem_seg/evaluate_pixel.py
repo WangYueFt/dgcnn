@@ -33,7 +33,7 @@ def get_info_classes(cls_path):
 
 
 def main():
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_runs', help='path to the folder.')
     parser.add_argument('--path_cls', help='path to the folder.')
@@ -55,8 +55,9 @@ def main():
         classes, labels, label2color = get_info_classes(path_cls)
 
         files = natsorted(os.listdir(path_infer))
-        cases = [s for s in files if s.endswith(".obj")]
+        cases = [s for s in files if s.endswith(".txt")]
         names = natsorted(set([re.split("[.\_]+",string)[0] for string in cases]))
+        names = names[:-2]
 
         n_classes = len(classes)
         cnf_matrix = np.zeros((n_classes, n_classes), dtype=int)
