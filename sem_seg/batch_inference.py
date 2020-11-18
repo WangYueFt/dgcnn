@@ -15,51 +15,55 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--path_data', help='folder with train test data')
 parser.add_argument('--path_cls', help='path to classes txt.')
 parser.add_argument('--gpu', type=int, default=0, help='GPU to use [default: GPU 0]')
-parser.add_argument('--batch_size', type=int, default=1, help='Batch Size during training [default: 1]')
+parser.add_argument('--batch_size', type=int, default=32, help='Batch Size during training [default: 32]')
 parser.add_argument('--num_point', type=int, default=4096, help='Point number [default: 4096]')
 parser.add_argument('--model_path', required=True, help='model checkpoint file path')
-parser.add_argument('--no_clutter', action='store_true', help='If true, donot count the clutter class')
 parser.add_argument('--visu', action='store_true', help='Whether to output OBJ file for prediction visualization.')
+parser.add_argument('--test_name', help='name of the test')
 parsed_args = parser.parse_args()
 
 path_data = parsed_args.path_data
 path_cls = parsed_args.path_cls
 NUM_CLASSES = len(open(path_cls).readlines(  ))
 
+test_name = parsed_args.test_name
 BATCH_SIZE = parsed_args.batch_size
 NUM_POINT = parsed_args.num_point
 MODEL_PATH = os.path.join(parsed_args.model_path, "model.ckpt")
 GPU_INDEX = parsed_args.gpu
-DUMP_DIR = os.path.join(parsed_args.model_path, "dump")
+DUMP_DIR = os.path.join(parsed_args.model_path, "dump_" + test_name)
 if not os.path.exists(DUMP_DIR): os.mkdir(DUMP_DIR)
 LOG_FOUT = open(os.path.join(DUMP_DIR, 'log_evaluate.txt'), 'w')
 LOG_FOUT.write(str(parsed_args)+'\n')
-
-path_test = os.path.join(path_data, 'test/npy')
 
 def log_string(out_str):
   LOG_FOUT.write(out_str+'\n')
   LOG_FOUT.flush()
   print(out_str)
 
-def evaluate():
+def evaluate(path_data):
   is_training = False
    
   with tf.device('/gpu:'+str(GPU_INDEX)):
     pointclouds_pl, labels_pl = placeholder_inputs(BATCH_SIZE, NUM_POINT)
     is_training_pl = tf.placeholder(tf.bool, shape=())
 
+    # simple model
     pred = get_model(pointclouds_pl, is_training_pl)
     loss = get_loss(pred, labels_pl)
     pred_softmax = tf.nn.softmax(pred)
  
+    # Add ops to save and restore all the variables.
     saver = tf.train.Saver()
-    
+  
+  # Create a session
   config = tf.ConfigProto()
   config.gpu_options.allow_growth = True
   config.allow_soft_placement = True
+  # config.log_device_placement = True
   sess = tf.Session(config=config)
 
+  # Restore variables from disk.
   saver.restore(sess, MODEL_PATH)
   log_string("Model restored.")
 
@@ -76,11 +80,11 @@ def evaluate():
   output_filelist = os.path.join(DUMP_DIR, "output_filelist.txt")
   fout_out_filelist = open(output_filelist, 'w')
 
-  path_test = os.path.join(path_data, 'test/npy')
-
   times = list()
+  path_test = os.path.join(path_data, 'npy')
 
   for root, dirs, files in os.walk(path_test):  # for each folder
+
     for file in enumerate(files):  # for each file in the folder
       if re.search("\.(npy)$", file[1]):  # if the file is an image
         filepath = os.path.join(root, file[1])  # file path
@@ -101,7 +105,6 @@ def evaluate():
         total_correct += a
         total_seen += b
         fout_out_filelist.write(out_data_label_filename+'\n')
-  fout_out_filelist.close()
 
   avg = sum(times) / len(times)
   fps = 1 / avg
@@ -139,6 +142,7 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
   max_room_z = max(data[:,2])
   
   file_size = current_data.shape[0]
+  print("--------------- FILE SIZE: " + str(file_size))
   num_batches = file_size // BATCH_SIZE
   print(file_size)
 
@@ -154,10 +158,7 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
     loss_val, pred_val = sess.run([ops['loss'], ops['pred_softmax']],
                     feed_dict=feed_dict)
 
-    if parsed_args.no_clutter:
-      pred_label = np.argmax(pred_val[:,:,0:12], 2) # BxN
-    else:
-      pred_label = np.argmax(pred_val, 2) # BxN
+    pred_label = np.argmax(pred_val, 2) # BxN
     
     # Save prediction labels to OBJ file
     for b in range(BATCH_SIZE):
@@ -177,7 +178,8 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
         if parsed_args.visu:
           fout.write('v %f %f %f %d %d %d\n' % (pts[i,6], pts[i,7], pts[i,8], color[0], color[1], color[2]))
           fout_gt.write('v %f %f %f %d %d %d\n' % (pts[i,6], pts[i,7], pts[i,8], color_gt[0], color_gt[1], color_gt[2]))
-        
+          fout_base.write('v %f %f %f %d %d %d\n' % (pts[i,6], pts[i,7], pts[i,8],  pts[i,3], pts[i,4], pts[i,5]))
+
         fout_data_label.write('%f %f %f %d %d %d %f %d\n' % (pts[i,6], pts[i,7], pts[i,8], pts[i,3], pts[i,4], pts[i,5], pred_val[b,i,pred[i]], pred[i]))
         fout_gt_label.write('%d\n' % (l[i]))
     
@@ -198,10 +200,11 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
   if parsed_args.visu:
     fout.close()
     fout_gt.close()
+    fout_base.close()
   return total_correct, total_seen
 
 
 if __name__=='__main__':
   with tf.Graph().as_default():
-    evaluate()
+    evaluate(path_data)
   LOG_FOUT.close()
