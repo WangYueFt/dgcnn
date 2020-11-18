@@ -9,7 +9,7 @@ from model import *
 import indoor3d_util
 import time
 
-"python batch_inference.py --path_data a/b/c --path_cls meta/class_or.txt --model_path RUNS/test_indoor --dump_dir RUNS/test_indoor --visu"
+"python batch_inference.py --path_data a/b/c --path_cls meta/class_or.txt --model_path RUNS/test_indoor --dump_dir RUNS/test_indoor --test_name aaaaa/bbb --visu"
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--path_data', help='folder with train test data')
@@ -60,7 +60,7 @@ def evaluate(path_data):
   config = tf.ConfigProto()
   config.gpu_options.allow_growth = True
   config.allow_soft_placement = True
-  # config.log_device_placement = True
+  config.log_device_placement = True
   sess = tf.Session(config=config)
 
   # Restore variables from disk.
@@ -86,7 +86,7 @@ def evaluate(path_data):
   for root, dirs, files in os.walk(path_test):  # for each folder
 
     for file in enumerate(files):  # for each file in the folder
-      if re.search("\.(npy)$", file[1]):  # if the file is an image
+      if re.search("\.(npy)$", file[1]):  # if the file is a npy
         filepath = os.path.join(root, file[1])  # file path
         out_data_label_filename = os.path.basename(filepath)[:-4] + '_pred.txt'
         out_data_label_filename = os.path.join(DUMP_DIR, out_data_label_filename)
@@ -106,8 +106,8 @@ def evaluate(path_data):
         total_seen += b
         fout_out_filelist.write(out_data_label_filename+'\n')
 
-  avg = sum(times) / len(times)
-  fps = 1 / avg
+  avg = sum(times)/len(times)
+  fps = 1/avg
 
   fout_out_filelist.close()
   log_string('all room eval accuracy: %f' % (total_correct / float(total_seen)))
@@ -127,7 +127,7 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
   if parsed_args.visu:
     fout = open(os.path.join(DUMP_DIR, os.path.basename(room_path)[:-4]+'_pred.obj'), 'w')
     fout_gt = open(os.path.join(DUMP_DIR, os.path.basename(room_path)[:-4]+'_gt.obj'), 'w')
-    fout_real_color = open(os.path.join(DUMP_DIR, os.path.basename(room_path)[:-4]+'_real_color.obj'), 'w')
+    fout_base = open(os.path.join(DUMP_DIR, os.path.basename(room_path)[:-4]+'_base.obj'), 'w')
   fout_data_label = open(out_data_label_filename, 'w')
   fout_gt_label = open(out_gt_label_filename, 'w')
   
@@ -179,7 +179,6 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
           fout.write('v %f %f %f %d %d %d\n' % (pts[i,6], pts[i,7], pts[i,8], color[0], color[1], color[2]))
           fout_gt.write('v %f %f %f %d %d %d\n' % (pts[i,6], pts[i,7], pts[i,8], color_gt[0], color_gt[1], color_gt[2]))
           fout_base.write('v %f %f %f %d %d %d\n' % (pts[i,6], pts[i,7], pts[i,8],  pts[i,3], pts[i,4], pts[i,5]))
-
         fout_data_label.write('%f %f %f %d %d %d %f %d\n' % (pts[i,6], pts[i,7], pts[i,8], pts[i,3], pts[i,4], pts[i,5], pred_val[b,i,pred[i]], pred[i]))
         fout_gt_label.write('%d\n' % (l[i]))
     
@@ -195,12 +194,13 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
 
   log_string('eval mean loss: %f' % (loss_sum / float(total_seen/NUM_POINT)))
   log_string('eval accuracy: %f'% (total_correct / float(total_seen)))
-  fout_data_label.close()
-  fout_gt_label.close()
+
   if parsed_args.visu:
     fout.close()
     fout_gt.close()
     fout_base.close()
+  fout_data_label.close()
+  fout_gt_label.close()
   return total_correct, total_seen
 
 
