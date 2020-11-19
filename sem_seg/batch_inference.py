@@ -96,14 +96,14 @@ def evaluate(path_data):
 
         start = time.time()
 
-        a, b = eval_one_epoch(sess, ops, filepath, out_data_label_filename, out_gt_label_filename)
+        correct, seen = eval_one_epoch(sess, ops, filepath, out_data_label_filename, out_gt_label_filename)
 
         done = time.time()
         elapsed = done - start
         times.append(elapsed)
 
-        total_correct += a
-        total_seen += b
+        total_correct += correct
+        total_seen += seen
         fout_out_filelist.write(out_data_label_filename+'\n')
 
   avg = sum(times)/len(times)

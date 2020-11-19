@@ -46,12 +46,8 @@ def collect_point_label(anno_path, out_filename, cls_path, file_format='txt'):
     for f in glob.glob(os.path.join(anno_path, '*.txt')):
         name = os.path.basename(f).split('.')[0]
         bits = name.split('_')
-        cls = ""
-        for i in range(len(bits)-1):
-            cls = cls + bits[i]
-            if i == len(bits)-2:
-                break
-            cls = cls + "_"
+        cls = bits[0]
+
         points = np.loadtxt(f)
         labels = np.ones((points.shape[0],1)) * g_class2label[cls]
         points_list.append(np.concatenate([points, labels], 1)) # Nx7
