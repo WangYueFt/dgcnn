@@ -3,6 +3,7 @@
 
 https://medium.com/repro-repo/install-cuda-and-cudnn-for-tensorflow-gpu-on-ubuntu-79306e4ac04e (SEE BELOW)
 
+- Ubunut 16.04
 - drivers: NVIDIA binary driver - version 384.130 from nvidia-384 (proprietary, tested)
 - cuda: cat /usr/local/cuda/version.txt -> CUDA Version 9.0.176
 - cudnn: cat /usr/include/cudnn.h | grep CUDNN_MAJOR -A 2 -> #define CUDNN_MAJOR 7 #define CUDNN_MINOR 0 #define CUDNN_PATCHLEVEL 5
