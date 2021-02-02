@@ -42,7 +42,10 @@ def collect_point_label(anno_path, out_filename, cls_path, file_format='txt'):
 
     g_classes, g_class2label, g_label2color = get_info_classes(cls_path)
 
+    print(g_class2label)
+
     
+
     for f in glob.glob(os.path.join(anno_path, '*.txt')):
         name = os.path.basename(f).split('.')[0]
         bits = name.split('_')
@@ -147,7 +150,13 @@ def room2blocks(data, label, num_point, block_size=1.0, stride=1.0,
     assert(stride<=block_size)
 
     limit = np.amax(data, 0)[0:3]
-     
+
+    if block_size == 0.1:
+        lessthan = 100
+    if block_size == 0.2:
+        lessthan = 400
+    print(lessthan)
+
     # Get the corner location for our sampling blocks    
     xbeg_list = []
     ybeg_list = []
@@ -179,7 +188,7 @@ def room2blocks(data, label, num_point, block_size=1.0, stride=1.0,
        xcond = (data[:,0]<=xbeg+block_size) & (data[:,0]>=xbeg)
        ycond = (data[:,1]<=ybeg+block_size) & (data[:,1]>=ybeg)
        cond = xcond & ycond
-       if np.sum(cond) < 100: # discard block if there are less than 100 pts.
+       if np.sum(cond) < lessthan: # discard block if there are less than 100 pts.
            print("DISCARTED BLOCK")
            continue
        

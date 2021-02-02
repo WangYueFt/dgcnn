@@ -50,9 +50,9 @@ data
 # train and infer
 - python3 train.py --path_data Desktop/data/train_val/ --cls 5 --log_dir RUNS/run_x --batch_size X  # con 32 no va
 
-- python3 batch_inference.py --path_data Desktop/data/test/test1/ --path_cls Desktop/data/classes.txt --model_path RUNS/run_x/ --test_name "test1" --batch_size 8 --visu 
+- python3 inference.py --path_data Desktop/data/test/test1/ --path_cls Desktop/data/classes.txt --model_path RUNS/run_x/ --test_name "test1" --batch_size 8 --visu 
 
-- python3 batch_inference_online.py --path_data Desktop/data/test/test_online/ --path_cls Desktop/data/valve/classes.txt --model_path RUNS/run_x/ --test_name "test_online" --batch_size 8 --out
+- python3 inference_online.py --path_data Desktop/data/test/test_online/ --path_cls Desktop/data/valve/classes.txt --model_path RUNS/run_x/ --test_name "test_online" --batch_size 8 --out
 
 # troubleshouting
 
