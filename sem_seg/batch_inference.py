@@ -20,11 +20,15 @@ parser.add_argument('--num_point', type=int, default=4096, help='Point number [d
 parser.add_argument('--model_path', required=True, help='model checkpoint file path')
 parser.add_argument('--visu', action='store_true', help='Whether to output OBJ file for prediction visualization.')
 parser.add_argument('--test_name', help='name of the test')
+parser.add_argument('--block', default=0.1, help='block size.')
+parser.add_argument('--stride', default=0.1, help='stride size.')
 parsed_args = parser.parse_args()
 
 path_data = parsed_args.path_data
 path_cls = parsed_args.path_cls
 NUM_CLASSES = len(open(path_cls).readlines(  ))
+block = float(parsed_args.block)
+stride = float(parsed_args.stride)
 
 test_name = parsed_args.test_name
 BATCH_SIZE = parsed_args.batch_size
@@ -81,7 +85,7 @@ def evaluate(path_data):
   fout_out_filelist = open(output_filelist, 'w')
 
   times = list()
-  path_test = os.path.join(path_data, 'npy')
+  path_test = os.path.join(path_data) #, 'npy')
 
   for root, dirs, files in os.walk(path_test):  # for each folder
 
@@ -131,7 +135,7 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
   fout_data_label = open(out_data_label_filename, 'w')
   fout_gt_label = open(out_gt_label_filename, 'w')
   
-  current_data, current_label = indoor3d_util.room2blocks_wrapper_normalized(room_path, NUM_POINT, block_size=0.1, stride=0.1)
+  current_data, current_label = indoor3d_util.room2blocks_wrapper_normalized(room_path, NUM_POINT, block_size=block, stride=stride)
   current_data = current_data[:,0:NUM_POINT,:]
   current_label = np.squeeze(current_label)
   # Get room dimension..

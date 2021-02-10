@@ -12,7 +12,7 @@ import pandas as pd
 script to evaluate a model
 
 execution example:
- - python3 evaluate_pixel.py --path_run "/home/miguel/Desktop/pipes/dgcnn/sem_seg/RUNS/valve_test/" --path_cls "/home/miguel/Desktop/pipes/data/valve_test/classes.txt"
+ - python3 evaluate_pixel.py --path_runs "/home/miguel/Desktop/pipes/dgcnn/sem_seg/RUNS/valve_test/" --path_cls "/home/miguel/Desktop/pipes/data/valve_test/classes.txt" --test_name pool
 '''
 
 def get_info_classes(cls_path):
@@ -37,8 +37,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_runs', help='path to the folder.')
     parser.add_argument('--path_cls', help='path to the folder.')
+    parser.add_argument('--test_name', help='name of the test')
     parsed_args = parser.parse_args(sys.argv[1:])
 
+    test_name = parsed_args.test_name
     path_runs = parsed_args.path_runs
     path_cls = parsed_args.path_cls  # get class txt path
 
@@ -50,7 +52,8 @@ def main():
 
         path_run = os.path.join(path_runs,run)
 
-        path_infer = os.path.join(path_run, 'dump')
+        path_infer = os.path.join(path_run, "dump_" + test_name)
+        print(path_infer)
 
         classes, labels, label2color = get_info_classes(path_cls)
 
@@ -107,7 +110,7 @@ def main():
         cnf_norm_h_s = np.array_str(cnf_norm_h)
         cnf_norm_v_s = np.array_str(cnf_norm_v)
 
-        f = open(path_run + '/evaluation.txt', 'w')
+        f = open(path_run + '/evaluation_pixel_' + test_name + '.txt', 'w')
         f.write('\n')
         f.write('Confusion matrix \n\n')
         f.write(cnf_matrix_s + '\n\n')
@@ -126,7 +129,7 @@ def main():
             f.write(str_rec + '\n\n')
         f.close()
 
-        filepath = path_run + '/evaluation_pixel.xlsx'
+        filepath = path_run + '/evaluation_pixel_' + test_name + '.xlsx'
         df = pd.DataFrame.from_records(cnf_matrix, index=classes)
         df.to_excel(filepath, header = classes, index_label = 'gt\pred')
 

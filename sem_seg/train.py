@@ -61,7 +61,7 @@ BN_DECAY_CLIP = 0.99
 
 HOSTNAME = socket.gethostname()
 
-path_train = os.path.join(path_data, 'train/h5')
+path_train = os.path.join(path_data, 'train')
 files_train = provider.getDataFiles(os.path.join(path_train, 'files.txt'))
 
 data_batch_list = []
@@ -76,7 +76,7 @@ train_data = np.concatenate(data_batch_list, 0)
 train_label = np.concatenate(label_batch_list, 0)
 print(train_data.shape, train_label.shape)
 
-path_val = os.path.join(path_data, 'val/h5')
+path_val = os.path.join(path_data, 'val')
 files_val = provider.getDataFiles(os.path.join(path_val, 'files.txt'))
 
 data_batch_list = []
@@ -226,6 +226,11 @@ def train():
          'merged': merged,
          'step': batch}
 
+    loss_t_list = list()
+    loss_val_list = list()
+    acc_t_list = list()
+    acc_val_list = list()
+
     for epoch in range(MAX_EPOCH):
       log_string('**** EPOCH %03d ****' % (epoch))
       sys.stdout.flush()
@@ -247,12 +252,9 @@ def train():
           log_string('early stopping')
           break
 
-  sess = best_sess
   log_string('save session at epoch %03d' % (best_epoch))
-
-  
   # Save the variables to disk. 
-  save_path = saver.save(sess, os.path.join(LOG_DIR, "model.ckpt"))
+  save_path = saver.save(best_sess, os.path.join(LOG_DIR, "model.ckpt"))
   log_string("Model saved in file: %s" % save_path)
 
 def early_stopping(t_loss, v_loss, thr):
@@ -331,9 +333,9 @@ def eval_one_epoch(sess, ops, val_writer):
     start_idx = batch_idx * BATCH_SIZE
     end_idx = (batch_idx+1) * BATCH_SIZE
 
-    feed_dict = {ops['pointclouds_pl']: current_data[start_idx:end_idx, :, :],
-                  ops['labels_pl']: current_label[start_idx:end_idx],
-                  ops['is_training_pl']: is_training}
+    feed_dict = {ops['pointclouds_phs'][0]: current_data[start_idx:end_idx, :, :],
+                  ops['labels_phs'][0]: current_label[start_idx:end_idx],
+                  ops['is_training_phs'][0]: is_training}
     summary, step, loss_val, pred_val = sess.run([ops['merged'], ops['step'], ops['loss'], ops['pred']], feed_dict=feed_dict)
     val_writer.add_summary(summary, step)
     pred_val = np.argmax(pred_val, 2)
@@ -354,6 +356,7 @@ def eval_one_epoch(sess, ops, val_writer):
   
   log_string('eval mean loss: %f' % (mean_loss))
   log_string('eval accuracy: %f'% (accuracy))
+  log_string('eval class acc: ' + str((np.array(total_correct_class)/np.array(total_seen_class, dtype=np.float))))
   log_string('eval avg class acc: %f' % (np.mean(np.array(total_correct_class)/np.array(total_seen_class, dtype=np.float))))
 
   return mean_loss, accuracy
