@@ -53,7 +53,6 @@ def main():
         path_run = os.path.join(path_runs,run)
 
         path_infer = os.path.join(path_run, "dump_" + test_name)
-        print(path_infer)
 
         classes, labels, label2color = get_info_classes(path_cls)
 

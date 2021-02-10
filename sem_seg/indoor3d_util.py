@@ -42,7 +42,10 @@ def collect_point_label(anno_path, out_filename, cls_path, file_format='txt'):
 
     g_classes, g_class2label, g_label2color = get_info_classes(cls_path)
 
+    print(g_class2label)
+
     
+
     for f in glob.glob(os.path.join(anno_path, '*.txt')):
         name = os.path.basename(f).split('.')[0]
         bits = name.split('_')
@@ -153,7 +156,6 @@ def room2blocks(data, label, num_point, block_size=1.0, stride=1.0,
     if block_size == 0.2:
         lessthan = 400
     print(lessthan)
-     
     # Get the corner location for our sampling blocks    
     xbeg_list = []
     ybeg_list = []
