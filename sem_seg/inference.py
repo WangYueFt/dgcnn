@@ -85,7 +85,7 @@ def evaluate(path_data):
   fout_out_filelist = open(output_filelist, 'w')
 
   times = list()
-  path_test = os.path.join(path_data) #, 'npy')
+  path_test = os.path.join(path_data) # , 'npy')
 
   for root, dirs, files in os.walk(path_test):  # for each folder
 
