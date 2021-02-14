@@ -18,13 +18,17 @@ parser.add_argument('--gpu', type=int, default=0, help='GPU to use [default: GPU
 parser.add_argument('--batch_size', type=int, default=32, help='Batch Size during training [default: 32]')
 parser.add_argument('--num_point', type=int, default=4096, help='Point number [default: 4096]')
 parser.add_argument('--model_path', required=True, help='model checkpoint file path')
-parser.add_argument('--out', action='store_true', help='Whether to output.')
+parser.add_argument('--visu', action='store_true', help='Whether to output.')
 parser.add_argument('--test_name', help='name of the test')
+parser.add_argument('--block', default=0.1, help='block size.')
+parser.add_argument('--stride', default=0.1, help='stride size.')
 parsed_args = parser.parse_args()
 
 path_data = parsed_args.path_data
 path_cls = parsed_args.path_cls
 NUM_CLASSES = len(open(path_cls).readlines(  ))
+block = float(parsed_args.block)
+stride = float(parsed_args.stride)
 
 test_name = parsed_args.test_name
 BATCH_SIZE = parsed_args.batch_size
@@ -81,7 +85,7 @@ def evaluate(path_data):
   fout_out_filelist = open(output_filelist, 'w')
 
   times = list()
-  path_test = os.path.join(path_data, 'npy')
+  path_test = os.path.join(path_data) # , 'npy')
 
   while 1:
 
@@ -118,14 +122,14 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
   total_seen_class = [0 for _ in range(NUM_CLASSES)]
   total_correct_class = [0 for _ in range(NUM_CLASSES)]
 
-  if parsed_args.out:
+  if parsed_args.visu:
     fout = open(os.path.join(DUMP_DIR, os.path.basename(room_path)[:-4]+'_pred.obj'), 'w')
     fout_gt = open(os.path.join(DUMP_DIR, os.path.basename(room_path)[:-4]+'_gt.obj'), 'w')
     fout_base = open(os.path.join(DUMP_DIR, os.path.basename(room_path)[:-4]+'_base.obj'), 'w')
   fout_data_label = open(out_data_label_filename, 'w')
   fout_gt_label = open(out_gt_label_filename, 'w')
   
-  current_data, current_label = indoor3d_util.room2blocks_wrapper_normalized(room_path, NUM_POINT, block_size=0.1, stride=0.1)
+  current_data, current_label = indoor3d_util.room2blocks_wrapper_normalized(room_path, NUM_POINT, block_size=block, stride=stride)
   current_data = current_data[:,0:NUM_POINT,:]
   current_label = np.squeeze(current_label)
   # Get room dimension..
@@ -169,7 +173,7 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
         color = g_label2color[pred[i]]
         color_gt = g_label2color[current_label[start_idx+b, i]]
 
-        if parsed_args.out:
+        if parsed_args.visu:
           fout.write('v %f %f %f %d %d %d\n' % (pts[i,6], pts[i,7], pts[i,8], color[0], color[1], color[2]))
           fout_gt.write('v %f %f %f %d %d %d\n' % (pts[i,6], pts[i,7], pts[i,8], color_gt[0], color_gt[1], color_gt[2]))
           fout_base.write('v %f %f %f %d %d %d\n' % (pts[i,6], pts[i,7], pts[i,8],  pts[i,3], pts[i,4], pts[i,5]))
@@ -189,7 +193,7 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
   log_string('eval mean loss: %f' % (loss_sum / float(total_seen/NUM_POINT)))
   log_string('eval accuracy: %f'% (total_correct / float(total_seen)))
 
-  if parsed_args.out:
+  if parsed_args.visu:
     fout.close()
     fout_gt.close()
     fout_base.close()
