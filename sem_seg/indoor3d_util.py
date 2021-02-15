@@ -253,6 +253,29 @@ def room2blocks_plus_normalized(data_label, num_point, block_size, stride,
     new_data_batch[:, :, 0:6] = data_batch
     return new_data_batch, label_batch
 
+def room2blocks_plus_normalized_parsed(data_label, max_data, num_point, block_size, stride,
+                                random_sample, sample_num, sample_aug):
+    """ room2block, with input filename and RGB preprocessing.
+        for each block centralize XYZ, add normalized XYZ as 678 channels
+    """
+    data = data_label[:,0:6]
+    data[:,3:6] /= 255.0
+    label = data_label[:,-1].astype(np.uint8)
+    
+    data_batch, label_batch = room2blocks(data, label, num_point, block_size, stride,
+                                          random_sample, sample_num, sample_aug)
+    new_data_batch = np.zeros((data_batch.shape[0], num_point, 9))
+    for b in range(data_batch.shape[0]):
+        new_data_batch[b, :, 6] = data_batch[b, :, 0]/max_data[0]
+        new_data_batch[b, :, 7] = data_batch[b, :, 1]/max_data[1]
+        new_data_batch[b, :, 8] = data_batch[b, :, 2]/max_data[2]
+        minx = min(data_batch[b, :, 0])
+        miny = min(data_batch[b, :, 1])
+        data_batch[b, :, 0] -= (minx+block_size/2)
+        data_batch[b, :, 1] -= (miny+block_size/2)
+    new_data_batch[:, :, 0:6] = data_batch
+    return new_data_batch, label_batch
+
 
 def room2blocks_wrapper_normalized(data_label_filename, num_point, block_size=1.0, stride=1.0,
                                    random_sample=False, sample_num=None, sample_aug=1):

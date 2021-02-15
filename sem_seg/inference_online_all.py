@@ -44,7 +44,7 @@ stride_proj = 0.1
 minim_points = 10
 
 
-def evaluate(data, label, max_pc, sess, ops):
+def evaluate(data, label, xyz_max, sess, ops):
 
     is_training = False
 
@@ -73,9 +73,9 @@ def evaluate(data, label, max_pc, sess, ops):
     data = data.reshape((data.shape[0]*data.shape[1]), data.shape[2])
     data = np.delete(data, [0,1,2], 1)
     data[:, [0,1,2,3,4,5,]] = data[:, [3,4,5,0,1,2]] 
-    data[:,0] *= max_pc[0]
-    data[:,1] *= max_pc[1]
-    data[:,2] *= max_pc[2]
+    data[:,0] *= xyz_max[0]
+    data[:,1] *= xyz_max[1]
+    data[:,2] *= xyz_max[2]
     data[:,3:] *= 255.0
 
     data = data[:pred_label_stacked.shape[0], :]
@@ -124,11 +124,11 @@ if __name__=='__main__':
 
             for file in enumerate(sorted(files)):           # TODO AL FINAL FINAL LEER DE ROS
 
-                if re.search("\.(npy)$", file[1]):
+                if re.search("\.(txt)$", file[1]):
                     print("working on: " + str(file[1]))
                     
                     filepath = os.path.join(root, file[1])
-                    data_label_full = np.load(filepath) 
+                    data_label_full = np.loadtxt(filepath) 
                     os.remove(filepath)
 
                     if data_label_full.shape[0]> 200000: # TODO CHECK PC MINIMO DE PUNTOS, RANGO ADMISIBLE, BORRAR CERCA/LEJOS ANTES? (PUNTOS PC NORMAL ~ 460K)
@@ -139,18 +139,25 @@ if __name__=='__main__':
                         time_proj = 0
 
                         start = time.time()
-                        max_pc = np.array([max(data_label_full[:,0]), max(data_label_full[:,1]), max(data_label_full[:,2])])
+                        xyz_min = np.amin(data_label_full, axis=0)[0:3]
+                        data_label_full[:, 0:3] -= xyz_min
+                        end = time.time()
+                        time_min = end - start
+
+                        start = time.time()
+                        xyz_max = np.amax(data_label_full, axis=0)[0:3]
                         end = time.time()
                         time_max = end - start
 
                         start = time.time()
-                        data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized(data_label_full, points_sub, block_size=block_sub, stride=stride_sub, random_sample=False, sample_num=None, sample_aug=1)
+                        data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized_parsed(data_label_full, xyz_max, points_sub, block_size=block_sub, stride=stride_sub, random_sample=False, sample_num=None, sample_aug=1)
                         end = time.time()
                         time_sub_eval = end - start
 
                         start = time.time()
                         with tf.Graph().as_default():
-                            pred_sub = evaluate(data_sub, label_sub, max_pc, sess, ops)
+                            pred_sub = evaluate(data_sub, label_sub, xyz_max, sess, ops)
+                        pred_sub[:, 0:3] += xyz_min
                         end = time.time()
                         time_eval = end - start
                     
@@ -226,6 +233,7 @@ if __name__=='__main__':
                                 n_idx_proj = int(data_label_full.shape[0] * reduction)
                                 idx_proj = np.random.choice(data_label_full.shape[0], n_idx_proj, replace=False)
                                 data_proj = data_label_full[idx_proj, 0:6]
+                                data_proj[:, 0:3] += xyz_min
                                 end = time.time()
                                 time_sub_proj = end - start
 
@@ -250,7 +258,7 @@ if __name__=='__main__':
                                     fout_proj.write('v %f %f %f %d %d %d\n' % (data_proj[i,0], data_proj[i,1], data_proj[i,2], data_proj[i,3], data_proj[i,4], data_proj[i,5]))
 
 
-                        times = (time_max, time_sub_eval, time_eval, time_inst_noref, time_inst_ref, time_sub_proj, time_proj)
+                        times = (time_min, time_max, time_sub_eval, time_eval, time_inst_noref, time_inst_ref, time_sub_proj, time_proj)
                         times_list.append(times)
 
                         times_mean = np.mean(times_list,axis=0)
@@ -258,9 +266,9 @@ if __name__=='__main__':
 
                         fout_times = open(os.path.join(dump_path, 'times.txt'), 'w')
                         for i in range(times_stack.shape[0]):
-                            fout_times.write('%f %f %f %f %f %f %f\n' % (times_stack[i,0], times_stack[i,1], times_stack[i,2], times_stack[i,3], times_stack[i,4], times_stack[i,5], times_stack[i,6]))
+                            fout_times.write('%f %f %f %f %f %f %f %f\n' % (times_stack[i,0], times_stack[i,1], times_stack[i,2], times_stack[i,3], times_stack[i,4], times_stack[i,5], times_stack[i,6], times_stack[i,7]))
                         fout_times.write('--------- MEAN ---------\n')
-                        fout_times.write('%f %f %f %f %f %f %f\n' % (times_mean[0], times_mean[1], times_mean[2], times_mean[3], times_stack[i,4], times_stack[i,5], times_stack[i,6]))
+                        fout_times.write('%f %f %f %f %f %f %f %f\n' % (times_mean[0], times_mean[1], times_mean[2], times_mean[3], times_mean[4], times_mean[5], times_mean[6], times_mean[7]))
                         fout_times.close()
 
                     else:
