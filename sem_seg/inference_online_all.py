@@ -21,6 +21,8 @@ parser.add_argument('--model_path', required=True, help='model checkpoint file p
 parser.add_argument('--points_sub', type=int, default=128, help='Point number sub [default: 4096]')
 parser.add_argument('--points_proj', type=int, default=0, help='Point number proj [default: 4096]')
 parser.add_argument('--test_name', help='name of the test')
+parser.add_argument('--down_pred', default = 2, help='downsample prediction')
+
 parsed_args = parser.parse_args()
 
 path_data = parsed_args.path_data
@@ -28,6 +30,7 @@ path_cls = parsed_args.path_cls
 model_path = os.path.join(parsed_args.model_path, "model.ckpt")
 points_sub = parsed_args.points_sub
 points_proj = parsed_args.points_proj
+down_pred = parsed_args.down_pred
 test_name = parsed_args.test_name
 dump_path = os.path.join(parsed_args.model_path, "dump_" + test_name)
 if not os.path.exists(dump_path): os.mkdir(dump_path)
@@ -41,7 +44,7 @@ block_sub = 0.1
 stride_sub = 0.1
 block_proj = 0.1
 stride_proj = 0.1
-minim_points = 10
+minim_points = 37
 
 
 def evaluate(data, label, xyz_max, sess, ops):
@@ -137,6 +140,7 @@ if __name__=='__main__':
                         time_inst_ref = 0
                         time_sub_proj = 0
                         time_proj = 0
+                        time_down_pred = 0
 
                         start = time.time()
                         xyz_min = np.amin(data_label_full, axis=0)[0:3]
@@ -170,9 +174,15 @@ if __name__=='__main__':
                             fout_sub_col.write('v %f %f %f %d %d %d %d\n' % (pred_sub[i,0], pred_sub[i,1], pred_sub[i,2], color[0], color[1], color[2], pred_sub[i,6]))
 
 
-                        
+                        if down_pred != 0:
+                            start = time.time()
+                            down = float(1/(2**down_pred)) # staying in the same block stride: 0.5 to go 1 down, 0.25 to go 2 down
+                            n_idx_pred_sub_down = int(pred_sub.shape[0] * down)  
+                            idx_pred_sub_down = np.random.choice(pred_sub.shape[0], n_idx_pred_sub_down, replace=False)
+                            pred_sub = pred_sub[idx_pred_sub_down, 0:7]
+                            end = time.time()
+                            time_down_pred = end - start                        
             
-
 
                         col_inst = {
                         0: [255, 255, 0],
@@ -192,17 +202,18 @@ if __name__=='__main__':
                         13: [255, 100, 0]
                         }
 
-                        radius = 0.03
-                        dimensions = 2
+                        rad_p = 0.03
+                        rad_v = 0.045
+                        dim = 2
                         min_p = minim_points
 
                         start = time.time()
-                        instances_noref = get_instances.get_instances(pred_sub, labels, radius, dimensions, min_p, ref=False)
+                        instances_noref = get_instances.get_instances(pred_sub, labels, dim, rad_p, dim, rad_v, min_p, ref=False)
                         end = time.time()
                         time_inst_noref = end - start
 
                         start = time.time()
-                        instances_ref = get_instances.get_instances(pred_sub, labels, radius, dimensions, min_p, ref=True)
+                        instances_ref = get_instances.get_instances(pred_sub, labels, dim, rad_p, dim, rad_v, min_p, ref=True)
                         end = time.time()
                         time_inst_ref = end - start
             
@@ -258,7 +269,7 @@ if __name__=='__main__':
                                     fout_proj.write('v %f %f %f %d %d %d\n' % (data_proj[i,0], data_proj[i,1], data_proj[i,2], data_proj[i,3], data_proj[i,4], data_proj[i,5]))
 
 
-                        times = (time_min, time_max, time_sub_eval, time_eval, time_inst_noref, time_inst_ref, time_sub_proj, time_proj)
+                        times = (time_min, time_max, time_sub_eval, time_eval, time_down_pred, time_inst_noref, time_inst_ref, time_sub_proj, time_proj)
                         times_list.append(times)
 
                         times_mean = np.mean(times_list,axis=0)
@@ -266,9 +277,10 @@ if __name__=='__main__':
 
                         fout_times = open(os.path.join(dump_path, 'times.txt'), 'w')
                         for i in range(times_stack.shape[0]):
-                            fout_times.write('%f %f %f %f %f %f %f %f\n' % (times_stack[i,0], times_stack[i,1], times_stack[i,2], times_stack[i,3], times_stack[i,4], times_stack[i,5], times_stack[i,6], times_stack[i,7]))
+                            fout_times.write('%f     %f     %f     %f     %f     %f     %f     %f     %f\n' % (times_stack[i,0], times_stack[i,1], times_stack[i,2], times_stack[i,3], times_stack[i,4], times_stack[i,5], times_stack[i,6], times_stack[i,7], times_stack[i,8]))
                         fout_times.write('--------- MEAN ---------\n')
-                        fout_times.write('%f %f %f %f %f %f %f %f\n' % (times_mean[0], times_mean[1], times_mean[2], times_mean[3], times_mean[4], times_mean[5], times_mean[6], times_mean[7]))
+                        fout_times.write(' t_min        t_max      t_sub_eval     t_eval    t_down_pred  t_inst_noref  t_inst_ref   t_sub_proj     t_proj\n')
+                        fout_times.write('%f     %f     %f     %f     %f     %f     %f     %f     %f\n' % (times_mean[0], times_mean[1], times_mean[2], times_mean[3], times_mean[4], times_mean[5], times_mean[6], times_mean[7], times_mean[8]))
                         fout_times.close()
 
                     else:

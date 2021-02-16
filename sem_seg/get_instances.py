@@ -5,6 +5,7 @@ import math
 import argparse
 import sys
 from natsort import natsorted
+import time
 '''
 script to evaluate a model
 
@@ -15,7 +16,7 @@ INPUT
 OUTPUT
     INSTANCES: X Y Z R G B C I
 
- - python3 get_instances.py --path_run "path/to/run/" --path_cls "path/to/classes.txt" --test_name name --dim 2 --rad 0.03 --min_p 10 --rad_v 0.1
+ - python3 get_instances.py --path_run "path/to/run/" --path_cls "path/to/classes.txt" --test_name name --dim 2 --rad 0.03 --min_points 10 --rad_ref 0.1
 '''
 
 
@@ -49,15 +50,15 @@ def get_info_classes(cls_path):
     return classes, labels, label2color
 
 
-def get_distance(p1,p2, dimensions):
-    if dimensions == 2:
+def get_distance(p1,p2, dim):
+    if dim == 2:
         d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2))
-    if dimensions == 3:
+    if dim == 3:
         d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2)+((p2[2]-p1[2])**2))
     return d
 
 
-def grow(data, points, min_dist, dimensions):
+def grow(data, points, min_dist, dim):
 
     new_idx = list()
     for n, p in enumerate(points):
@@ -71,7 +72,7 @@ def grow(data, points, min_dist, dimensions):
             cls2 = data[j, 6]
 
             if cls1 == cls2:
-                d = get_distance(p1,p2,dimensions)
+                d = get_distance(p1,p2,dim)
                 if d < min_dist:
                     new_idx.append(j)
 
@@ -132,104 +133,82 @@ def write_ply(data, path_out):
     f.close()
 
 
-def refine_instances(instances, labels, dimensions, radius, min_p, rad_v = 0.1):
+def refine_instances(instances_valve, data_label_pipe, rad_ref = 0.1):
 
-    repeat = 0
-    del_list_inst = list()
-
-    for i, inst in enumerate(instances):
-
+    for i, inst in enumerate(instances_valve):
         c_inst = inst[0,6]
         n_inst = inst[0,7]
-
-        if inst[0,6] == labels["valve"]:
-            central_point = np.mean(inst, axis=0)[0:3]
-
-            for j, inst2 in enumerate(instances):
-                del_list_point = list()
-
-                if inst2[0,6] == labels["pipe"]:
-
-                    for k, point in enumerate(inst2):
-                        p = point[0:3]
-                        d = get_distance(central_point,p,2)
-                        
-                        if d < rad_v:
-                            point[6] = c_inst
-                            point[7] = n_inst
-                            inst = np.vstack(point)
-                            del_list_point.append(k)               
-                            repeat = 1
-
-            inst2 = np.delete(inst2, del_list_point, 0)
-            if inst2.shape[0] < min_p:
-                del_list_inst.append(j)
-    
-    set_del_list_inst = set(del_list_inst)
-    for index in sorted(set_del_list_inst, reverse=True):
-        del instances[index]
-    
-    if repeat == 1:
+        central_point = np.mean(inst, axis=0)[0:3]
         
-        instances = np.vstack(instances)
-        instances= np.delete(instances,[7],1)
+        del_list_point = list()
 
-        ref_instances = list()
+        for k, point in enumerate(data_label_pipe):
+            p = point[0:3]
+            d = get_distance(central_point,p,2)
+            
+            if d < rad_ref:
+                point[6] = c_inst
+                point = np.append(point, n_inst)
+                inst = np.vstack([inst, point])
+                del_list_point.append(k)  
+        instances_valve[i] = inst
+        data_label_pipe = np.delete(data_label_pipe, del_list_point, 0)
 
-        n_inst = 1
-
-        while instances.size > 0:
-            actual_idx = [0]
-            actual_inst = instances[actual_idx]
-            inst = actual_inst
-            instances = np.delete(instances, actual_idx, axis=0)
-            while actual_idx:
-                actual_idx = grow(instances, actual_inst, radius, dimensions)
-                actual_inst = instances[actual_idx]
-                inst = np.vstack([inst, actual_inst])
-                instances = np.delete(instances, actual_idx, axis=0)
-            if inst.shape[0] > min_p:
-                inst = np.insert(inst, 7, n_inst, axis=1)
-                ref_instances.append(inst)
-                n_inst = n_inst + 1
-
-        sys.stdout.write('\n')
-    
-        return ref_instances
-    else:
-        return instances
+    return instances_valve, data_label_pipe
 
 
-def get_instances(data_label, labels, radius, dimensions, min_p, rad_v = 0.1, ref=False):
+def get_instances(data_label, labels, dim_p, rad_p, dim_v, rad_v, min_points, rad_ref = 0.1, ref=False):
 
-    dels = [labels["floor"]] # ,labels["vessel"],labels["block"]]
-    for i in (dels):
-        data_label = data_label[data_label[:,6] != i]
-
-    instances = list()
+    data_label_pipe = data_label[data_label[:,6] == [labels["pipe"]]]
+    data_label_valve = data_label[data_label[:,6] == [labels["valve"]]]
 
     n_inst = 1
 
-    while data_label.size > 0:
+    # get instances valves
+    instances_valve = list()
+    while data_label_valve.size > 0:
         actual_idx = [0]
-        actual_inst = data_label[actual_idx]
+        actual_inst = data_label_valve[actual_idx]
         inst = actual_inst
-        data_label = np.delete(data_label, actual_idx, axis=0)
+        data_label_valve = np.delete(data_label_valve, actual_idx, axis=0)
         while actual_idx:
-            actual_idx = grow(data_label, actual_inst, radius, dimensions)
-            actual_inst = data_label[actual_idx]
+            actual_idx = grow(data_label_valve, actual_inst, rad_v, dim_v)
+            actual_inst = data_label_valve[actual_idx]
             inst = np.vstack([inst, actual_inst])
-            data_label = np.delete(data_label, actual_idx, axis=0)
-        if inst.shape[0] > min_p:
+            data_label_valve = np.delete(data_label_valve, actual_idx, axis=0)
+        if inst.shape[0] > min_points:
             inst = np.insert(inst, 7, n_inst, axis=1)
-            instances.append(inst)
+            instances_valve.append(inst)
             n_inst = n_inst + 1
 
     sys.stdout.write('\n')
 
     if ref:
-        instances = refine_instances(instances, labels, dimensions, radius, min_p, rad_v)
-    
+        start = time.time()
+        instances_valve, data_label_pipe = refine_instances(instances_valve, data_label_pipe, rad_ref)
+        end = time.time()
+        time_ref = end - start
+
+    # get instances pipe
+    instances_pipe = list()
+    while data_label_pipe.size > 0:
+        actual_idx = [0]
+        actual_inst = data_label_pipe[actual_idx]
+        inst = actual_inst
+        data_label_pipe = np.delete(data_label_pipe, actual_idx, axis=0)
+        while actual_idx:
+            actual_idx = grow(data_label_pipe, actual_inst, rad_p, dim_p)
+            actual_inst = data_label_pipe[actual_idx]
+            inst = np.vstack([inst, actual_inst])
+            data_label_pipe = np.delete(data_label_pipe, actual_idx, axis=0)
+        if inst.shape[0] > min_points:
+            inst = np.insert(inst, 7, n_inst, axis=1)
+            instances_pipe.append(inst)
+            n_inst = n_inst + 1
+
+    sys.stdout.write('\n')
+
+    instances = instances_valve + instances_pipe
     if len(instances)!= 0:
         instances = np.vstack(instances)  # QUITANDO ESTO SE SACA LISTA Y SE PUEDE AHCER VSTACK FUERA
     else:
@@ -244,20 +223,24 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_run', help='path to the run folder.')
     parser.add_argument('--path_cls', help='path to the class file.')
-    parser.add_argument('--dim', default=2, help='dimensions to calculate distance for growing (2 or 3).')
-    parser.add_argument('--rad', default=0.02, help='max radius for growing (2 or 3).')
-    parser.add_argument('--min_p', default=0, help='min points to not delete an instance')
-    parser.add_argument('--rad_v', default=0.1, help='rad valve')
+    parser.add_argument('--dim_v', default=2, help='dim to calculate distance for growing (2 or 3).')
+    parser.add_argument('--rad_v', default=0.02, help='max rad for growing (2 or 3).')
+    parser.add_argument('--dim_p', default=2, help='dim to calculate distance for growing (2 or 3).')
+    parser.add_argument('--rad_p', default=0.02, help='max rad for growing (2 or 3).')
+    parser.add_argument('--min_points', default=0, help='min points to not delete an instance')
+    parser.add_argument('--rad_ref', default=0.1, help='rad valve')
     parser.add_argument('--test_name', help='name of the test')
 
     parsed_args = parser.parse_args(sys.argv[1:])
 
     path_run = parsed_args.path_run
     path_cls = parsed_args.path_cls  # get class txt path
-    dimensions = int(parsed_args.dim)
-    radius = float(parsed_args.rad)
-    min_p = int(parsed_args.min_p)
+    dim_v = int(parsed_args.dim_v)
     rad_v = float(parsed_args.rad_v)
+    dim_p = int(parsed_args.dim_p)
+    rad_p = float(parsed_args.rad_p)
+    min_points = int(parsed_args.min_points)
+    rad_ref = float(parsed_args.rad_ref)
     test_name = parsed_args.test_name
 
     path_infer = os.path.join(path_run, 'dump_' + test_name)
@@ -284,9 +267,9 @@ if __name__ == "__main__":
         pred = np.delete(pred,[6],1)
         gt = np.hstack([pred[...,0:6],gt])  
 
-        gt_inst = get_instances(gt, labels, radius, dimensions, min_p)
-        pred_inst = get_instances(pred, labels, radius, dimensions, min_p)
-        pred_inst_ref = get_instances(pred, labels, radius, dimensions, min_p, rad_v, ref=True)
+        gt_inst = get_instances(gt, labels, dim_p, rad_p, dim_v, rad_v, min_points)
+        pred_inst = get_instances(pred, labels, dim_p, rad_p, dim_v, rad_v, min_points)
+        pred_inst_ref = get_instances(pred, labels, dim_p, rad_p, dim_v, rad_v, min_points, rad_ref, ref=True)
 
         file_path_out = os.path.join(path_infer, name + "_gt_inst.ply")
         if pred_inst is not None:
