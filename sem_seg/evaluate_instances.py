@@ -77,10 +77,11 @@ def main():
     cases = [s for s in files if s.endswith(".obj")]
     names = natsorted(set([re.split("[.\_]+", string)[0] for string in cases]))
 
-    tp = 0
-    fp = 0
-    n_gt = 0
-    iou_max_list = list()
+    tp = np.zeros((len(classes),), dtype=int)
+    fp = np.zeros((len(classes),), dtype=int)
+    n_gt = np.zeros((len(classes),), dtype=int)
+    n_pred = np.zeros((len(classes),), dtype=int)
+    iou_max_sum = np.zeros((len(classes),), dtype=float)
 
     for name in names:
 
@@ -96,15 +97,19 @@ def main():
         if (gt.shape[0]>2) and (pred.shape[0]>2):  # IN CASE GT OR PRED ARE "EMPTY" - LOK AT GET_INSTANCES OUTPUT WHEN NO INSTANCES ORE FOUND (THEY SAVE "NULL" A TWO ROW NUMPY)
 
             gt_list = list()
-            for i in range(len(set(gt[..., 7]))):
-                inst = gt[np.where(gt[..., 7] == float(i+1))]
-                gt_list.append(inst)
-            n_gt = n_gt + len(gt_list)
+            instances_gt = set(gt[..., 7])
+            instances_pred = set(pred[..., 7])
+
+            for i in instances_gt:
+                inst = gt[np.where(gt[..., 7] == float(i))]
+                gt_list.append(inst) 
+                n_gt[int(inst[0, 6])] += 1 
 
             pred_list = list()
-            for j in range(len(set(pred[..., 7]))):
-                inst = pred[np.where(pred[..., 7] == float(j+1))]
+            for j in instances_pred:
+                inst = pred[np.where(pred[..., 7] == float(j))]
                 pred_list.append(inst)
+                n_pred[int(inst[0, 6])] += 1
 
             for i, pred_inst in enumerate(pred_list):
                 iou_list = list()
@@ -115,14 +120,16 @@ def main():
                         iou = 0
                     iou_list.append(iou)
                 iou_max = max(iou_list)
-                iou_max_list.append(iou_max)
-                if iou_max >= iou_thr:
-                    tp += 1
+                iou_max_sum[int(pred_inst[0, 6])]+= iou_max
+                if  iou_max >= iou_thr:
+                    tp[int(pred_inst[0, 6])] += 1 
                 else:
-                    fp += 1
-    fn = n_gt - tp
+                    fp[int(pred_inst[0, 6])] += 1 
 
-    mean_iou = np.mean(iou_max_list)
+    fn = n_gt - tp 
+    iou_max_mean = iou_max_sum / n_pred
+
+    # hacer cambios para sacar una fila de excel por cada clase con su nombre
     recall = tp/(tp+fn)
     precision = tp/(tp+fp)
     f1 = (2*recall*precision)/(recall+precision)
@@ -130,10 +137,10 @@ def main():
     filepath = os.path.join(path_run, "evaluation_instance_" + test_name + ".xlsx")
     if ref==1:
         filepath = os.path.join(path_run, "evaluation_instance_ref_" + test_name + ".xlsx")
-
-    header = ['Recall.', 'Precision', 'F1', 'mean_IoU']
-    csv = ({header[0]: recall, header[1]: precision, header[2]: f1, header[3]: mean_iou})
-    df = pd.DataFrame.from_records(csv, index=[''])
+    
+    header = ['Recall', 'Precision', 'F1', 'mean_IoU']
+    csv = ({header[0]: recall, header[1]: precision, header[2]: f1, header[3]: iou_max_mean})
+    df = pd.DataFrame.from_records(csv, index=classes)
     df.to_excel(filepath)
 
 

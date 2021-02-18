@@ -71,52 +71,48 @@ def read_ply(filename, type):
 
 def project_inst(low, high):
 
-    inst_low_list = list()
-    for i in range(len(set(low[..., 7]))):
-        inst = low[np.where(low[..., 7] == float(i+1))]
-        inst_low_list.append(inst)
-
     high_list = list()
 
-    for i, inst_low in enumerate(inst_low_list):
+    for i in set(low[..., 7]):  # for each isntance low
 
-        hull = ConvexHull(np.array(inst_low[:, 0:2]))
+        inst_low = low[np.where(low[..., 7] == float(i))] # get inst
 
-        hull_points = hull.points
-        hull_vertices = hull.vertices
-        coords = hull_points[hull_vertices]
-        poly = Polygon(coords)
+        hull = ConvexHull(np.array(inst_low[:, 0:2]))   # get its convex hull  TODO que pasa con las tuberias en "L", hace falta reproyectar tuberias?? ....y valvulas?
 
-        mins = np.amin(inst_low, axis=0)
-        maxs = np.amax(inst_low, axis=0)
+        hull_points = hull.points                       # get hull points
+        hull_vertices = hull.vertices                   # get hull vertices idx
+        coords = hull_points[hull_vertices]             # get hull vertices
+        poly = Polygon(coords)                          # create a polygon with those vertices
 
-        mask = (high[:, 0] > mins[0]) & (high[:, 0] < maxs[0]) & (high[:, 1] > mins[1]) & (high[:, 1] < maxs[1])
-        # TODO DAR UN PEQIEÑO MARGEN?
-        idx_mask = np.where(mask)
+        mins = np.amin(inst_low, axis=0)                # mins of instance
+        maxs = np.amax(inst_low, axis=0)                # maxs of instance
+
+        mask = (high[:, 0] > mins[0]) & (high[:, 0] < maxs[0]) & (high[:, 1] > mins[1]) & (high[:, 1] < maxs[1])    # create a square mask around instance TODO MARGEN
+        idx_mask = np.where(mask)                                                                                   # get idx of high points inside the mask
         if mask.size != 0:
-            high_sub = high[mask,:]
-            high_sub = np.hstack([high_sub,np.array(idx_mask).T])     
+            high_sub = high[mask,:]                                                                                 # get high points inside the mask (high_sub)
+            high_sub = np.hstack([high_sub,np.array(idx_mask).T])                                                   # save original idx
 
         inst_high = list()
         del_list = list()
 
-        for i, p in enumerate(high_sub):
-            point = Point(p[0],p[1])
-            if point.within(poly) == True:
-                p_high = np.hstack([p,inst_low[0,6:]])
-                inst_high.append(p_high)
-                del_list.append(int(high_sub[i,6])) # append el indice que tenga i en high sub de 6, que es el idice previo a la amscara, para borrar sobre el high grande, sin sub
+        for i, p in enumerate(high_sub):                    # for each point in high sub
+            point = Point(p[0],p[1])                        # get point
+            if point.within(poly) == True:                  # if its inside the convex hull
+                p_high = np.hstack([p,inst_low[0,6:]])      # give the point the class and instance number of inst_low
+                inst_high.append(p_high)                    # append to isntance high
+                del_list.append(int(high_sub[i,6]))         # annotate original idx
 
-        high = np.delete(high, del_list, 0)
-        inst_high = np.array(inst_high)
+        high = np.delete(high, del_list, 0)                 # delete from high the points that already were found to correspont to an instance
+        inst_high = np.array(inst_high)                     # convert inst high to numpy
         
-        if inst_high.shape[0] != 0:
-            if mask.size != 0:
-                inst_high = np.delete(inst_high,6,1)   # borrar columna mask idx
-            high_list.append(inst_high)
+        if inst_high.shape[0] != 0:                         # if inst high contains any points
+            if mask.size != 0:                              # if there was a mask
+                inst_high = np.delete(inst_high,6,1)        # delete from inst high the original idx column
+            high_list.append(inst_high)                     # append inst high
 
     if len(high_list)>0:
-        projections = np.vstack(high_list)   # QUITANDO ESTO SE SACA LISTA Y SE PUEDE AHCER VSTACK FUERA
+        projections = np.vstack(high_list)  # deleting this line, the ouput becomes a list of numpys
     else:
         print("NO PROJECTIONS FOUND")
         projections = None

@@ -123,45 +123,44 @@ if __name__=='__main__':
 
     while 1:
 
-        for root, dirs, files in os.walk(path_data):
+        for root, dirs, files in os.walk(path_data):        # for each folder
 
-            for file in enumerate(sorted(files)):           # TODO AL FINAL FINAL LEER DE ROS
+            for file in enumerate(sorted(files)):           # for each file           # TODO AL FINAL FINAL LEER DE ROS
 
-                if re.search("\.(txt)$", file[1]):
+                if re.search("\.(txt)$", file[1]):          # if its a txt     
                     print("working on: " + str(file[1]))
                     
                     filepath = os.path.join(root, file[1])
-                    data_label_full = np.loadtxt(filepath) 
+                    data_label_full = np.loadtxt(filepath)  # read from txt (not on xyz origin)
                     os.remove(filepath)
 
-                    if data_label_full.shape[0]> 200000: # TODO CHECK PC MINIMO DE PUNTOS, RANGO ADMISIBLE, BORRAR CERCA/LEJOS ANTES? (PUNTOS PC NORMAL ~ 460K)
+                    if data_label_full.shape[0]> 200000: # check pointcloud points, a good PC has ~ 480k points
 
-                        time_inst_noref = 0
-                        time_inst_ref = 0
+                        # init times that may not be calculated
+                        time_down_pred = 0
                         time_sub_proj = 0
                         time_proj = 0
-                        time_down_pred = 0
 
                         start = time.time()
-                        xyz_min = np.amin(data_label_full, axis=0)[0:3]
-                        data_label_full[:, 0:3] -= xyz_min
+                        xyz_min = np.amin(data_label_full, axis=0)[0:3]  # get pointcloud mins
+                        data_label_full[:, 0:3] -= xyz_min               # move pointcloud to origin
                         end = time.time()
                         time_min = end - start
 
                         start = time.time()
-                        xyz_max = np.amax(data_label_full, axis=0)[0:3]
+                        xyz_max = np.amax(data_label_full, axis=0)[0:3] # get pointcloud maxs
                         end = time.time()
                         time_max = end - start
 
                         start = time.time()
-                        data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized_parsed(data_label_full, xyz_max, points_sub, block_size=block_sub, stride=stride_sub, random_sample=False, sample_num=None, sample_aug=1)
+                        data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized_parsed(data_label_full, xyz_max, points_sub, block_size=block_sub, stride=stride_sub, random_sample=False, sample_num=None, sample_aug=1) # subsample PC for evaluation
                         end = time.time()
                         time_sub_eval = end - start
 
                         start = time.time()
                         with tf.Graph().as_default():
-                            pred_sub = evaluate(data_sub, label_sub, xyz_max, sess, ops)
-                        pred_sub[:, 0:3] += xyz_min
+                            pred_sub = evaluate(data_sub, label_sub, xyz_max, sess, ops)  # evaluate PC
+                        pred_sub[:, 0:3] += xyz_min                                       # recover PC's original position
                         end = time.time()
                         time_eval = end - start
                     
@@ -174,14 +173,14 @@ if __name__=='__main__':
                             fout_sub_col.write('v %f %f %f %d %d %d %d\n' % (pred_sub[i,0], pred_sub[i,1], pred_sub[i,2], color[0], color[1], color[2], pred_sub[i,6]))
 
 
-                        if down_pred != 0:
+                        if down_pred != 0:                  # if subsampling of prediciton is wanted
                             start = time.time()
-                            down = float(1/(2**down_pred)) # staying in the same block stride: 0.5 to go 1 down, 0.25 to go 2 down
+                            down = float(1/(2**down_pred))                  # down_pred = 1, to go down 1, down_pred = 2, to go down 2, always staying in te same block stride
                             n_idx_pred_sub_down = int(pred_sub.shape[0] * down)  
                             idx_pred_sub_down = np.random.choice(pred_sub.shape[0], n_idx_pred_sub_down, replace=False)
-                            pred_sub = pred_sub[idx_pred_sub_down, 0:7]
+                            pred_sub = pred_sub[idx_pred_sub_down, 0:7]     # downsample prediciton
                             end = time.time()
-                            time_down_pred = end - start                        
+                            time_down_pred = end - start                    
             
 
                         col_inst = {
@@ -202,18 +201,19 @@ if __name__=='__main__':
                         13: [255, 100, 0]
                         }
 
+                        # init get_instances parameters
                         rad_p = 0.03
                         rad_v = 0.045
                         dim = 2
                         min_p = minim_points
 
                         start = time.time()
-                        instances_noref = get_instances.get_instances(pred_sub, labels, dim, rad_p, dim, rad_v, min_p, ref=False)
+                        instances_noref = get_instances.get_instances(pred_sub, labels, dim, rad_p, dim, rad_v, min_p, ref=False) # get instances no ref
                         end = time.time()
                         time_inst_noref = end - start
 
                         start = time.time()
-                        instances_ref = get_instances.get_instances(pred_sub, labels, dim, rad_p, dim, rad_v, min_p, ref=True)
+                        instances_ref = get_instances.get_instances(pred_sub, labels, dim, rad_p, dim, rad_v, min_p, ref=True)  # get instances ref
                         end = time.time()
                         time_inst_ref = end - start
             
@@ -226,11 +226,12 @@ if __name__=='__main__':
                             fout_inst_col.write('v %f %f %f %d %d %d %d %d\n' % (instances_ref[i,0], instances_ref[i,1], instances_ref[i,2], color[0], color[1], color[2], instances_ref[i,6], instances_ref[i,7]))
             
 
-                        if instances_ref is not None:
+                        if instances_ref is not None: # if instances were found
 
-                            if points_proj != 0:
+                            if points_proj != 0:    # if projection is wanted
                                 
-                                if block_proj == 0.2:
+                                # determine projection number of points
+                                if block_proj == 0.2: 
                                     start = 0.03333
                                     by = 1024 / points_proj
                                     reduction = start / by
@@ -243,8 +244,8 @@ if __name__=='__main__':
                                 start = time.time()
                                 n_idx_proj = int(data_label_full.shape[0] * reduction)
                                 idx_proj = np.random.choice(data_label_full.shape[0], n_idx_proj, replace=False)
-                                data_proj = data_label_full[idx_proj, 0:6]
-                                data_proj[:, 0:3] += xyz_min
+                                data_proj = data_label_full[idx_proj, 0:6]  # subsample projection
+                                data_proj[:, 0:3] += xyz_min                # move projection to original position (data_label_full is on origin)
                                 end = time.time()
                                 time_sub_proj = end - start
 
