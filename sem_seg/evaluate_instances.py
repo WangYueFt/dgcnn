@@ -55,93 +55,100 @@ def get_info_classes(cls_path):
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path_run', help='path to the run folder.')
+    parser.add_argument('--path_runs', help='path to the run folder.')
     parser.add_argument('--path_cls', help='path to the class file.')
     parser.add_argument('--iou_thr', default=0.5, help='min iou.')
     parser.add_argument('--test_name', help='name of the test')
-    parser.add_argument('--ref', default=0, help='name of the test')
+    parser.add_argument('--ref', default=1, help='name of the test')
 
     parsed_args = parser.parse_args(sys.argv[1:])
 
-    path_run = parsed_args.path_run
+    path_runs = parsed_args.path_runs
     path_cls = parsed_args.path_cls  # get class txt path
     iou_thr = float(parsed_args.iou_thr)
     test_name = parsed_args.test_name
     ref = int(parsed_args.ref)
 
-    path_infer = os.path.join(path_run, 'dump_' + test_name)
 
-    classes, labels, label2color = get_info_classes(path_cls)
+    for run in listdir(path_runs):
 
-    files = natsorted(os.listdir(path_infer))
-    cases = [s for s in files if s.endswith(".obj")]
-    names = natsorted(set([re.split("[.\_]+", string)[0] for string in cases]))
+        print("evaluating run: " + run)
 
-    tp = np.zeros((len(classes),), dtype=int)
-    fp = np.zeros((len(classes),), dtype=int)
-    n_gt = np.zeros((len(classes),), dtype=int)
-    n_pred = np.zeros((len(classes),), dtype=int)
-    iou_max_sum = np.zeros((len(classes),), dtype=float)
+        path_run = os.path.join(path_runs,run)
 
-    for name in names:
+        path_infer = os.path.join(path_run, 'dump_' + test_name)
 
-        print("evaluating case: " + name)
-        path_gt = os.path.join(path_infer, name + "_gt_inst.ply")
-        path_pred = os.path.join(path_infer, name + "_pred_inst.ply")
-        if ref==1:
-            path_pred = os.path.join(path_infer, name + "_pred_inst_ref.ply")
+        classes, labels, label2color = get_info_classes(path_cls)
 
-        gt = read_ply(path_gt)
-        pred = read_ply(path_pred)
+        files = natsorted(os.listdir(path_infer))
+        cases = [s for s in files if s.endswith(".obj")]
+        names = natsorted(set([re.split("[.\_]+", string)[0] for string in cases]))
 
-        if (gt.shape[0]>2) and (pred.shape[0]>2):  # IN CASE GT OR PRED ARE "EMPTY" - LOK AT GET_INSTANCES OUTPUT WHEN NO INSTANCES ORE FOUND (THEY SAVE "NULL" A TWO ROW NUMPY)
+        tp = np.zeros((len(classes),), dtype=int)
+        fp = np.zeros((len(classes),), dtype=int)
+        n_gt = np.zeros((len(classes),), dtype=int)
+        n_pred = np.zeros((len(classes),), dtype=int)
+        iou_max_sum = np.zeros((len(classes),), dtype=float)
 
-            gt_list = list()
-            instances_gt = set(gt[..., 7])
-            instances_pred = set(pred[..., 7])
+        for name in names:
 
-            for i in instances_gt:
-                inst = gt[np.where(gt[..., 7] == float(i))]
-                gt_list.append(inst) 
-                n_gt[int(inst[0, 6])] += 1 
+            print("evaluating case: " + name)
+            path_gt = os.path.join(path_infer, name + "_gt_inst.ply")
+            path_pred = os.path.join(path_infer, name + "_pred_inst.ply")
+            if ref==1:
+                path_pred = os.path.join(path_infer, name + "_pred_inst_ref.ply")
 
-            pred_list = list()
-            for j in instances_pred:
-                inst = pred[np.where(pred[..., 7] == float(j))]
-                pred_list.append(inst)
-                n_pred[int(inst[0, 6])] += 1
+            gt = read_ply(path_gt)
+            pred = read_ply(path_pred)
 
-            for i, pred_inst in enumerate(pred_list):
-                iou_list = list()
-                for j, gt_inst in enumerate(gt_list):
-                    if pred_inst[0, 6] == gt_inst[0, 6]:
-                        iou = get_iou(pred_inst,gt_inst)
+            if (gt.shape[0]>2) and (pred.shape[0]>2):  # IN CASE GT OR PRED ARE "EMPTY" - LOK AT GET_INSTANCES OUTPUT WHEN NO INSTANCES ORE FOUND (THEY SAVE "NULL" A TWO ROW NUMPY)
+
+                gt_list = list()
+                instances_gt = set(gt[..., 7])
+                instances_pred = set(pred[..., 7])
+
+                for i in instances_gt:
+                    inst = gt[np.where(gt[..., 7] == float(i))]
+                    gt_list.append(inst) 
+                    n_gt[int(inst[0, 6])] += 1 
+
+                pred_list = list()
+                for j in instances_pred:
+                    inst = pred[np.where(pred[..., 7] == float(j))]
+                    pred_list.append(inst)
+                    n_pred[int(inst[0, 6])] += 1
+
+                for i, pred_inst in enumerate(pred_list):
+                    iou_list = list()
+                    for j, gt_inst in enumerate(gt_list):
+                        if pred_inst[0, 6] == gt_inst[0, 6]:
+                            iou = get_iou(pred_inst,gt_inst)
+                        else:
+                            iou = 0
+                        iou_list.append(iou)
+                    iou_max = max(iou_list)
+                    iou_max_sum[int(pred_inst[0, 6])]+= iou_max
+                    if  iou_max >= iou_thr:
+                        tp[int(pred_inst[0, 6])] += 1 
                     else:
-                        iou = 0
-                    iou_list.append(iou)
-                iou_max = max(iou_list)
-                iou_max_sum[int(pred_inst[0, 6])]+= iou_max
-                if  iou_max >= iou_thr:
-                    tp[int(pred_inst[0, 6])] += 1 
-                else:
-                    fp[int(pred_inst[0, 6])] += 1 
+                        fp[int(pred_inst[0, 6])] += 1 
 
-    fn = n_gt - tp 
-    iou_max_mean = iou_max_sum / n_pred
+        fn = n_gt - tp 
+        iou_max_mean = iou_max_sum / n_pred
 
-    # hacer cambios para sacar una fila de excel por cada clase con su nombre
-    recall = tp/(tp+fn)
-    precision = tp/(tp+fp)
-    f1 = (2*recall*precision)/(recall+precision)
+        # hacer cambios para sacar una fila de excel por cada clase con su nombre
+        recall = tp/(tp+fn)
+        precision = tp/(tp+fp)
+        f1 = (2*recall*precision)/(recall+precision)
 
-    filepath = os.path.join(path_run, "evaluation_instance_" + test_name + ".xlsx")
-    if ref==1:
-        filepath = os.path.join(path_run, "evaluation_instance_ref_" + test_name + ".xlsx")
-    
-    header = ['Recall', 'Precision', 'F1', 'mean_IoU']
-    csv = ({header[0]: recall, header[1]: precision, header[2]: f1, header[3]: iou_max_mean})
-    df = pd.DataFrame.from_records(csv, index=classes)
-    df.to_excel(filepath)
+        filepath = os.path.join(path_run, "evaluation_instance_" + test_name + ".xlsx")
+        if ref==1:
+            filepath = os.path.join(path_run, "evaluation_instance_ref_" + test_name + ".xlsx")
+        
+        header = ['Recall', 'Precision', 'F1', 'mean_IoU']
+        csv = ({header[0]: recall, header[1]: precision, header[2]: f1, header[3]: iou_max_mean})
+        df = pd.DataFrame.from_records(csv, index=classes)
+        df.to_excel(filepath)
 
 
 

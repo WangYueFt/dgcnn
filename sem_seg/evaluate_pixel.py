@@ -44,9 +44,8 @@ def main():
     path_runs = parsed_args.path_runs
     path_cls = parsed_args.path_cls  # get class txt path
 
-    run_folders = listdir(path_runs)
 
-    for run in run_folders:
+    for run in listdir(path_runs):
 
         print("evaluating run: " + run)
 

@@ -221,7 +221,7 @@ def get_instances(data_label, labels, dim_p, rad_p, dim_v, rad_v, min_points, ra
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path_run', help='path to the run folder.')
+    parser.add_argument('--path_runs', help='path to the run folder.')
     parser.add_argument('--path_cls', help='path to the class file.')
     parser.add_argument('--dim_v', default=2, help='dim to calculate distance for growing (2 or 3).')
     parser.add_argument('--rad_v', default=0.02, help='max rad for growing (2 or 3).')
@@ -233,7 +233,7 @@ if __name__ == "__main__":
 
     parsed_args = parser.parse_args(sys.argv[1:])
 
-    path_run = parsed_args.path_run
+    path_runs = parsed_args.path_runs
     path_cls = parsed_args.path_cls  # get class txt path
     dim_v = int(parsed_args.dim_v)
     rad_v = float(parsed_args.rad_v)
@@ -243,48 +243,55 @@ if __name__ == "__main__":
     rad_ref = float(parsed_args.rad_ref)
     test_name = parsed_args.test_name
 
-    path_infer = os.path.join(path_run, 'dump_' + test_name)
 
-    classes, labels, label2color = get_info_classes(path_cls)
+    for run in listdir(path_runs):
 
-    files = natsorted(os.listdir(path_infer))
-    cases = [s for s in files if s.endswith(".obj")]
-    names = natsorted(set([re.split("[.\_]+",string)[0] for string in cases]))
+        print("evaluating run: " + run)
 
-    null = np.array([[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]])
+        path_run = os.path.join(path_runs,run)
 
-    for name in names:
+        path_infer = os.path.join(path_run, 'dump_' + test_name)
 
-        print("evaluating case: " + name)
-        path_gt = os.path.join(path_infer, name + "_gt.txt")
-        path_pred = os.path.join(path_infer, name + "_pred.txt")
+        classes, labels, label2color = get_info_classes(path_cls)
 
-        gt = np.loadtxt(path_gt)
-        pred = np.loadtxt(path_pred)
+        files = natsorted(os.listdir(path_infer))
+        cases = [s for s in files if s.endswith(".obj")]
+        names = natsorted(set([re.split("[.\_]+",string)[0] for string in cases]))
 
-        gt = gt.reshape(gt.shape[0],1)
+        null = np.array([[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]])
 
-        pred = np.delete(pred,[6],1)
-        gt = np.hstack([pred[...,0:6],gt])  
+        for name in names:
 
-        gt_inst = get_instances(gt, labels, dim_p, rad_p, dim_v, rad_v, min_points)
-        pred_inst = get_instances(pred, labels, dim_p, rad_p, dim_v, rad_v, min_points)
-        pred_inst_ref = get_instances(pred, labels, dim_p, rad_p, dim_v, rad_v, min_points, rad_ref, ref=True)
+            print("evaluating case: " + name)
+            path_gt = os.path.join(path_infer, name + "_gt.txt")
+            path_pred = os.path.join(path_infer, name + "_pred.txt")
 
-        file_path_out = os.path.join(path_infer, name + "_gt_inst.ply")
-        if pred_inst is not None:
-            write_ply(gt_inst, file_path_out)
-        else:
-            write_ply(null, file_path_out)
-        
-        file_path_out = os.path.join(path_infer, name + "_pred_inst.ply")
-        if pred_inst is not None:
-            write_ply(pred_inst, file_path_out)
-        else:
-            write_ply(null, file_path_out)
+            gt = np.loadtxt(path_gt)
+            pred = np.loadtxt(path_pred)
 
-        file_path_out = os.path.join(path_infer, name + "_pred_inst_ref.ply")
-        if pred_inst_ref is not None:
-            write_ply(pred_inst_ref, file_path_out)
-        else:
-            write_ply(null, file_path_out)
+            gt = gt.reshape(gt.shape[0],1)
+
+            pred = np.delete(pred,[6],1)
+            gt = np.hstack([pred[...,0:6],gt])  
+
+            gt_inst = get_instances(gt, labels, dim_p, rad_p, dim_v, rad_v, min_points)
+            pred_inst = get_instances(pred, labels, dim_p, rad_p, dim_v, rad_v, min_points)
+            pred_inst_ref = get_instances(pred, labels, dim_p, rad_p, dim_v, rad_v, min_points, rad_ref, ref=True)
+
+            file_path_out = os.path.join(path_infer, name + "_gt_inst.ply")
+            if pred_inst is not None:
+                write_ply(gt_inst, file_path_out)
+            else:
+                write_ply(null, file_path_out)
+            
+            file_path_out = os.path.join(path_infer, name + "_pred_inst.ply")
+            if pred_inst is not None:
+                write_ply(pred_inst, file_path_out)
+            else:
+                write_ply(null, file_path_out)
+
+            file_path_out = os.path.join(path_infer, name + "_pred_inst_ref.ply")
+            if pred_inst_ref is not None:
+                write_ply(pred_inst_ref, file_path_out)
+            else:
+                write_ply(null, file_path_out)
