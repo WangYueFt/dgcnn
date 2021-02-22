@@ -43,7 +43,6 @@ LOG_FOUT.write(str(parsed_args)+'\n')
 def log_string(out_str):
   LOG_FOUT.write(out_str+'\n')
   LOG_FOUT.flush()
-  print(out_str)
 
 def evaluate(path_data):
   is_training = False
@@ -96,7 +95,7 @@ def evaluate(path_data):
         out_data_label_filename = os.path.join(DUMP_DIR, out_data_label_filename)
         out_gt_label_filename = os.path.basename(filepath)[:-4] + '_gt.txt'
         out_gt_label_filename = os.path.join(DUMP_DIR, out_gt_label_filename)
-        print(filepath, out_data_label_filename)
+        print(filepath)
 
         start = time.time()
 
@@ -148,7 +147,6 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
   file_size = current_data.shape[0]
   print("--------------- FILE SIZE: " + str(file_size))
   num_batches = file_size // BATCH_SIZE
-  print(file_size)
 
   
   for batch_idx in range(num_batches):
