@@ -21,7 +21,7 @@ parser.add_argument('--model_path', required=True, help='model checkpoint file p
 parser.add_argument('--points_sub', type=int, default=128, help='Point number sub [default: 4096]')
 parser.add_argument('--points_proj', type=int, default=0, help='Point number proj [default: 4096]')
 parser.add_argument('--test_name', help='name of the test')
-parser.add_argument('--down_pred', default = 2, help='downsample prediction')
+parser.add_argument('--down_pred', default = 0, help='downsample prediction')
 
 parsed_args = parser.parse_args()
 
@@ -80,7 +80,7 @@ def evaluate(data, label, xyz_max, sess, ops):
     data[:,1] *= xyz_max[1]
     data[:,2] *= xyz_max[2]
     data[:,3:] *= 255.0
-
+    
     data = data[:pred_label_stacked.shape[0], :]
 
     pred_sub = np.hstack([data,pred_label_stacked])  
@@ -127,7 +127,7 @@ if __name__=='__main__':
 
             for file in enumerate(sorted(files)):           # for each file           # TODO AL FINAL FINAL LEER DE ROS
 
-                if re.search("\.(txt)$", file[1]):          # if its a txt     
+                if re.search("\.(txt)$", file[1]):          # if its a txt       
                     print("working on: " + str(file[1]))
                     
                     filepath = os.path.join(root, file[1])
@@ -141,19 +141,26 @@ if __name__=='__main__':
                         time_sub_proj = 0
                         time_proj = 0
 
+                        # subsample data_label_full to match ros subscription
+                        reduction = 0.1  
+                        n_idx_full_sub = int(data_label_full.shape[0] * reduction)
+                        idx_full_sub = np.random.choice(data_label_full.shape[0], n_idx_full_sub, replace=False)
+                        data_label_full_sub = data_label_full[idx_full_sub, 0:6]
+
+
                         start = time.time()
-                        xyz_min = np.amin(data_label_full, axis=0)[0:3]  # get pointcloud mins
-                        data_label_full[:, 0:3] -= xyz_min               # move pointcloud to origin
+                        xyz_min = np.amin(data_label_full_sub, axis=0)[0:3]  # get pointcloud mins
+                        data_label_full_sub[:, 0:3] -= xyz_min               # move pointcloud to origin
                         end = time.time()
                         time_min = end - start
 
                         start = time.time()
-                        xyz_max = np.amax(data_label_full, axis=0)[0:3] # get pointcloud maxs
+                        xyz_max = np.amax(data_label_full_sub, axis=0)[0:3] # get pointcloud maxs
                         end = time.time()
                         time_max = end - start
 
                         start = time.time()
-                        data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized_parsed(data_label_full, xyz_max, points_sub, block_size=block_sub, stride=stride_sub, random_sample=False, sample_num=None, sample_aug=1) # subsample PC for evaluation
+                        data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized_parsed(data_label_full_sub, xyz_max, points_sub, block_size=block_sub, stride=stride_sub, random_sample=False, sample_num=None, sample_aug=1) # subsample PC for evaluation
                         end = time.time()
                         time_sub_eval = end - start
 
@@ -180,8 +187,8 @@ if __name__=='__main__':
                             idx_pred_sub_down = np.random.choice(pred_sub.shape[0], n_idx_pred_sub_down, replace=False)
                             pred_sub = pred_sub[idx_pred_sub_down, 0:7]     # downsample prediciton
                             end = time.time()
-                            time_down_pred = end - start                    
-            
+                            time_down_pred = end - start
+
 
                         col_inst = {
                         0: [255, 255, 0],
@@ -216,7 +223,7 @@ if __name__=='__main__':
                         instances_ref = get_instances.get_instances(pred_sub, labels, dim, rad_p, dim, rad_v, min_p, ref=True)  # get instances ref
                         end = time.time()
                         time_inst_ref = end - start
-            
+
                         fout_inst = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_inst_ref.obj'), 'w')
                         fout_inst_col = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_inst_ref_col.obj'), 'w')
                         for i in range(instances_ref.shape[0]):
@@ -232,20 +239,21 @@ if __name__=='__main__':
                                 
                                 # determine projection number of points
                                 if block_proj == 0.2: 
-                                    start = 0.03333
+                                    start = 0.3333 # 0.03333  TODO x10 because reduced data_label_full by /10 into data_label_full_sub
                                     by = 1024 / points_proj
                                     reduction = start / by
 
                                 else:
-                                    start = 0.05
+                                    start = 0.5 # 0.05  TODO x10 because reduced data_label_full by /10 into data_label_full_sub 
                                     by = 512 / points_proj
                                     reduction = start / by
                                 
+                                # TODO USE FULL_SUB SO WE CAN REUSE XYZ MIN MAX
                                 start = time.time()
-                                n_idx_proj = int(data_label_full.shape[0] * reduction)
-                                idx_proj = np.random.choice(data_label_full.shape[0], n_idx_proj, replace=False)
-                                data_proj = data_label_full[idx_proj, 0:6]  # subsample projection
-                                data_proj[:, 0:3] += xyz_min                # move projection to original position (data_label_full is on origin)
+                                n_idx_proj = int(data_label_full_sub.shape[0] * reduction)
+                                idx_proj = np.random.choice(data_label_full_sub.shape[0], n_idx_proj, replace=False)
+                                data_proj = data_label_full_sub[idx_proj, 0:6]  # subsample projection
+                                data_proj[:, 0:3] += xyz_min # move projection to original position (data_label_full is on origin)
                                 end = time.time()
                                 time_sub_proj = end - start
 
