@@ -46,7 +46,7 @@ class Pointcloud_Flip:
         self.new_pc = False
 
         # Set image subscriber
-        pc_sub = message_filters.Subscriber('/stereo_down/scaled_x4/points2', PointCloud2)
+        pc_sub = message_filters.Subscriber('/voxel_grid/output', PointCloud2)
         info_sub = message_filters.Subscriber('/stereo_down/left/camera_info', CameraInfo)
         ts_image = message_filters.TimeSynchronizer([pc_sub, info_sub], 10)
         ts_image.registerCallback(self.cb_pc)
@@ -99,6 +99,7 @@ class Pointcloud_Flip:
 
         pc_np = self.pc2array(pc, sub=0.1)
         pc_np_flipped = pc_np.copy()
+        print(pc_np.shape)
         pc_np_flipped[:, 2] *= -1  # flip Z axis
         flipped_pc = self.array2pc(header, pc_np_flipped)
 
