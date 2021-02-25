@@ -34,6 +34,7 @@ class Pointcloud_Seg:
         self.block_sub = 0.1
         self.stride_sub = 0.1
         self.gpu_index = 0
+        self.sub = 0.1
         
         
         self.model_path = "/home/miguel/Desktop/dgcnn/sem_seg/RUNS/cross/....."
@@ -119,9 +120,7 @@ class Pointcloud_Seg:
             self.set_model()
             self.init = True
 
-        pc_np = self.pc2array(pc, sub=0.1)
-        # TODO seg pc
-
+        pc_np = self.pc2array(pc)
         pc_np[:, 2] *= -1  # flip Z axis
 
         xyz_min = np.amin(pc_np, axis=0)[0:3]   # get pointcloud mins
@@ -130,12 +129,12 @@ class Pointcloud_Seg:
         data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized_parsed(pc_np,  xyz_max, self.points_sub, block_size=self.block_sub, stride=self.stride_sub, random_sample=False, sample_num=None, sample_aug=1) # subsample PC for evaluation
         
         with tf.Graph().as_default():
-            pred_sub = self.evaluate(data_sub, label_sub, xyz_max, self.sess, self.ops)  # evaluate PC
-        pred_sub[:, 0:3] += xyz_min  
+            pred_sub = self.evaluate(data_sub, label_sub, xyz_max)  # evaluate PC
+        pred_sub[:, 0:3] += xyz_min  # return to initial position
 
 
         for i in range(pred_sub.shape[0]):
-            color = label2color[pred_sub[i,6]]
+            color = self.label2color[pred_sub[i,6]]
             pred_sub[i,3] = color[0]
             pred_sub[i,4] = color[1]
             pred_sub[i,5] = color[2]
@@ -154,17 +153,16 @@ class Pointcloud_Seg:
 
 
     
-    def pc2array(self, ros_pc, sub):
+    def pc2array(self, ros_pc):
         gen = pc2.read_points(ros_pc, skip_nans=True)
         pc_np = np.array(list(gen))
 
-        if sub != 1:    # subsample pc_np
+        if self.sub != 1:    # subsample pc_np
             n_idx_sub = int(pc_np.shape[0] * 0.1)
             idx_sub = np.random.choice(pc_np.shape[0], n_idx_sub, replace=False)
             pc_np = pc_np[idx_sub, 0:4]
 
         rgb_list = list()
-
 
         for rgb in pc_np[...,3]:
             # cast float32 to int so that bitwise operations are possible
@@ -208,7 +206,7 @@ class Pointcloud_Seg:
         return pc
 
 
-    def evaluate(self, data, label, xyz_max, sess, ops):
+    def evaluate(self, data, label, xyz_max):
 
         is_training = False
 
@@ -222,11 +220,11 @@ class Pointcloud_Seg:
             start_idx = batch_idx * self.batch_size
             end_idx = (batch_idx+1) * self.batch_size
             
-            feed_dict = {ops['pointclouds_pl']: data[start_idx:end_idx, :, :],
-                        ops['labels_pl']: label[start_idx:end_idx],
-                        ops['is_training_pl']: is_training}
-            loss_val, pred_val = sess.run([ops['loss'], ops['pred_softmax']],
-                                        feed_dict=feed_dict)
+            feed_dict = {self.ops['pointclouds_pl']: data[start_idx:end_idx, :, :],
+                        self.ops['labels_pl']: label[start_idx:end_idx],
+                        self.ops['is_training_pl']: is_training}
+
+            loss_val, pred_val = self.sess.run([self.ops['loss'], self.ops['pred_softmax']],feed_dict=feed_dict)
 
             pred_label = np.argmax(pred_val, 2)
             pred_label = pred_label.reshape(pred_label.shape[0]*pred_label.shape[1],1)
