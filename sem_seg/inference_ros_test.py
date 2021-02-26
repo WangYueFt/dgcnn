@@ -6,8 +6,6 @@ import rospy
 import ctypes
 import struct
 import numpy as np
-from model import *
-import indoor3d_util
 
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
@@ -21,39 +19,42 @@ from sensor_msgs.msg import PointCloud2
 from sensor_msgs.msg import Image, CameraInfo
 
 
-class Pointcloud_Seg:
+class Pointcloud_Flip:
     def __init__(self, name):
 
 
+        self.DUMMY_FIELD_PREFIX = '__'
+        self.type_mappings = [(PointField.INT8, np.dtype('int8')),
+                 (PointField.UINT8, np.dtype('uint8')),
+                 (PointField.INT16, np.dtype('int16')),
+                 (PointField.UINT16, np.dtype('uint16')),
+                 (PointField.INT32, np.dtype('int32')),
+                 (PointField.UINT32, np.dtype('uint32')),
+                 (PointField.FLOAT32, np.dtype('float32')),
+                 (PointField.FLOAT64, np.dtype('float64'))]
+
+        self.pftype_to_nptype = dict(self.type_mappings)
+
+        self.pftype_sizes = {PointField.INT8: 1, PointField.UINT8: 1, PointField.INT16: 2, PointField.UINT16: 2,
+                PointField.INT32: 4, PointField.UINT32: 4, PointField.FLOAT32: 4, PointField.FLOAT64: 8}
 
         self.name = name
         # Params
         self.period = 1
-        self.batch_size = 16
-        self.points_sub = 128
-        self.block_sub = 0.1
-        self.stride_sub = 0.1
-        self.gpu_index = 0
-        self.sub = 0.1
-        
-        
-        self.model_path = "/home/miguel/Desktop/dgcnn/sem_seg/RUNS/cross/....."
-        self.path_cls = "home/miguel/Desktop/data/PIPES2/sets/classes/4.txt"
-        self.classes, self.labels, self.label2color = indoor3d_util.get_info_classes(self.path_cls)
-
 
         self.init = False
         self.new_pc = False
 
         # Set image subscriber
-        pc_sub = message_filters.Subscriber('/stereo_down/scaled_x4/points2', PointCloud2)
+        #pc_sub = message_filters.Subscriber('/voxel_grid/output', PointCloud2)
+        pc_sub = message_filters.Subscriber('/stereo_down/scaled_x2/points2', PointCloud2)
         info_sub = message_filters.Subscriber('/stereo_down/left/camera_info', CameraInfo)
         ts_image = message_filters.TimeSynchronizer([pc_sub, info_sub], 10)
         ts_image.registerCallback(self.cb_pc)
 
         # Set class image publisher
-        self.pub_pc_used = rospy.Publisher("/stereo_down/scaled_x4/points2_used", PointCloud2, queue_size=4)
-        self.pub_pc_seg = rospy.Publisher("/stereo_down/scaled_x4/points2_seg", PointCloud2, queue_size=4)
+        self.pub_pc_used = rospy.Publisher("/stereo_down/scaled_x2/points2_used", PointCloud2, queue_size=4)
+        self.pub_pc_flip = rospy.Publisher("/stereo_down/scaled_x2/points2_flipped", PointCloud2, queue_size=4)
 
         # Set classification timer
         rospy.Timer(rospy.Duration(self.period), self.run)
@@ -68,34 +69,8 @@ class Pointcloud_Seg:
         self.new_pc = True
 
     def set_model(self):
-        with tf.device('/gpu:'+str(self.gpu_index)):
-            pointclouds_pl, labels_pl = placeholder_inputs(self.batch_size, self.points_sub)
-            is_training_pl = tf.placeholder(tf.bool, shape=())
-
-            # simple model
-            pred = get_model(pointclouds_pl, is_training_pl)
-            loss = get_loss(pred, labels_pl)
-            pred_softmax = tf.nn.softmax(pred)
-    
-            # Add ops to save and restore all the variables.
-            saver = tf.train.Saver()
-            
-        # Create a session
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        config.allow_soft_placement = True
-        config.log_device_placement = True
-        self.sess = tf.Session(config=config)
-
-        # Restore variables from disk.
-        saver.restore(self.sess, self.model_path)
-
-        self.ops = {'pointclouds_pl': pointclouds_pl,
-            'labels_pl': labels_pl,
-            'is_training_pl': is_training_pl,
-            'pred': pred,
-            'pred_softmax': pred_softmax,
-            'loss': loss}
+        z = 1
+        # TODO set flipping ready!
 
     def run(self,_):
         t0 = rospy.Time.now()
@@ -110,9 +85,9 @@ class Pointcloud_Seg:
             pc = self.pc
             header = self.pc.header
             if not self.init:
-                rospy.loginfo('[%s]: Start pc segmentation', self.name)	
+                rospy.loginfo('[%s]: Start pc fliping', self.name)	
         except:
-            rospy.logwarn('[%s]: There is no input pc to run the segmentation', self.name)
+            rospy.logwarn('[%s]: There is no input pc to run the flipping', self.name)
             return
 
         # Set model
@@ -120,49 +95,46 @@ class Pointcloud_Seg:
             self.set_model()
             self.init = True
 
-        pc_np = self.pc2array(pc)
-        pc_np[:, 2] *= -1  # flip Z axis
+        # TODO flip pc
+        print("i have pc, lets make ir array")
 
-        xyz_min = np.amin(pc_np, axis=0)[0:3]   # get pointcloud mins
-        xyz_max = np.amax(pc_np, axis=0)[0:3]   # get pointcloud maxs
-        pc_np[:, 0:3] -= xyz_min                # move pointcloud to origin
-        data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized_parsed(pc_np,  xyz_max, self.points_sub, block_size=self.block_sub, stride=self.stride_sub, random_sample=False, sample_num=None, sample_aug=1) # subsample PC for evaluation
-        
-        with tf.Graph().as_default():
-            pred_sub = self.evaluate(data_sub, label_sub, xyz_max)  # evaluate PC
-        pred_sub[:, 0:3] += xyz_min  # return to initial position
+        pc_np = self.pc2array(pc, sub=0.1)
+        pc_np_flipped = pc_np.copy()
+        print(pc_np.shape)
+        pc_np_flipped[:, 2] *= -1  # flip Z axis
+        flipped_pc = self.array2pc(header, pc_np_flipped)
 
 
-        for i in range(pred_sub.shape[0]):
-            color = self.label2color[pred_sub[i,6]]
-            pred_sub[i,3] = color[0]
-            pred_sub[i,4] = color[1]
-            pred_sub[i,5] = color[2]
+        save = False
+        if save:
+            t = rospy.Time.now()
+            fout_proj = open("/home/miguel/Desktop/test_ros_subscriber/out/pc_np"+str(t)+".obj", 'w')
+            for i in range(pc_np.shape[0]):
+                fout_proj.write('v %f %f %f %d %d %d\n' % (pc_np[i,0], pc_np[i,1], pc_np[i,2], pc_np[i,3], pc_np[i,4], pc_np[i,5]))
 
-
-        pc_seg = self.array2pc(header, pred_sub)
 
 
 
         # Publish
         self.pub_pc_used.publish(pc)
-        self.pub_pc_seg.publish(pc_seg)
+        self.pub_pc_flip.publish(flipped_pc)
 
         time = rospy.Time.now()-t0
         rospy.loginfo('[%s]: Pc flipping took %s seconds', self.name, time.secs + time.nsecs*1e-9)
 
 
     
-    def pc2array(self, ros_pc):
+    def pc2array(self, ros_pc, sub):
         gen = pc2.read_points(ros_pc, skip_nans=True)
         pc_np = np.array(list(gen))
 
-        if self.sub != 1:    # subsample pc_np
+        if sub != 1:    # subsample pc_np
             n_idx_sub = int(pc_np.shape[0] * 0.1)
             idx_sub = np.random.choice(pc_np.shape[0], n_idx_sub, replace=False)
             pc_np = pc_np[idx_sub, 0:4]
 
         rgb_list = list()
+
 
         for rgb in pc_np[...,3]:
             # cast float32 to int so that bitwise operations are possible
@@ -206,50 +178,12 @@ class Pointcloud_Seg:
         return pc
 
 
-    def evaluate(self, data, label, xyz_max):
 
-        is_training = False
-
-        label = np.squeeze(label)
-
-        num_batches = data.shape[0] // self.batch_size
-
-        pred_label_list =list()
-
-        for batch_idx in range(num_batches):
-            start_idx = batch_idx * self.batch_size
-            end_idx = (batch_idx+1) * self.batch_size
-            
-            feed_dict = {self.ops['pointclouds_pl']: data[start_idx:end_idx, :, :],
-                        self.ops['labels_pl']: label[start_idx:end_idx],
-                        self.ops['is_training_pl']: is_training}
-
-            loss_val, pred_val = self.sess.run([self.ops['loss'], self.ops['pred_softmax']],feed_dict=feed_dict)
-
-            pred_label = np.argmax(pred_val, 2)
-            pred_label = pred_label.reshape(pred_label.shape[0]*pred_label.shape[1],1)
-            pred_label_list.append(pred_label)
-
-        pred_label_stacked = np.vstack(pred_label_list)  
-
-        data = data.reshape((data.shape[0]*data.shape[1]), data.shape[2])
-        data = np.delete(data, [0,1,2], 1)
-        data[:, [0,1,2,3,4,5,]] = data[:, [3,4,5,0,1,2]] 
-        data[:,0] *= xyz_max[0]
-        data[:,1] *= xyz_max[1]
-        data[:,2] *= xyz_max[2]
-        data[:,3:] *= 255.0
-        
-        data = data[:pred_label_stacked.shape[0], :]
-
-        pred_sub = np.hstack([data,pred_label_stacked])  
-
-        return pred_sub
 
 if __name__ == '__main__':
     try:
         rospy.init_node('flip_pc')
-        Pointcloud_Seg(rospy.get_name())
+        Pointcloud_Flip(rospy.get_name())
 
         rospy.spin()
     except rospy.ROSInterruptException:
