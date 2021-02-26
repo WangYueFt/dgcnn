@@ -29,7 +29,7 @@ class Pointcloud_Seg:
         self.name = name
         # Params
         self.period = 1
-        self.batch_size = 16
+        self.batch_size = 1
         self.points_sub = 128
         self.block_sub = 0.1
         self.stride_sub = 0.1
