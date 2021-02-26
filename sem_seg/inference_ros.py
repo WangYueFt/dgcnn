@@ -8,6 +8,7 @@ import struct
 import numpy as np
 from model import *
 import indoor3d_util
+import get_instances
 
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
@@ -27,14 +28,38 @@ class Pointcloud_Seg:
 
 
         self.name = name
-        # Params
+        # Params inference
         self.period = 1
         self.batch_size = 1
-        self.points_sub = 128
+        self.points_sub = 128 # 256 512
         self.block_sub = 0.1
         self.stride_sub = 0.1
         self.gpu_index = 0
         self.sub = 0.1
+
+
+        # Params get_instance
+        self.col_inst = {
+        0: [255, 255, 0],
+        1: [255, 0, 255],
+        2: [0, 255, 255],
+        3: [0, 128, 0],
+        4: [0, 0, 128],
+        5: [128, 0, 0],
+        6: [0, 255, 0],
+        7: [0, 0, 255],
+        8: [255, 0, 0],
+        9: [0, 100, 0],
+        10: [0, 0, 100],
+        11: [100, 0, 0],
+        12: [100, 0, 255],
+        13: [0, 255, 100],
+        13: [255, 100, 0]
+        }
+        self.rad_p = 0.03
+        self.rad_v = 0.03
+        self.dim = 2
+        self.min_p = 40 # 80 140
         
         
         self.model_path = "/home/miguel/Desktop/test_ros_subscriber/4_128_11_c7/model.ckpt"
@@ -53,8 +78,9 @@ class Pointcloud_Seg:
         ts_image.registerCallback(self.cb_pc)
 
         # Set class image publisher
-        self.pub_pc_used = rospy.Publisher("/stereo_down/scaled_x2/points2_used", PointCloud2, queue_size=4)
+        self.pub_pc_base = rospy.Publisher("/stereo_down/scaled_x2/points2_base", PointCloud2, queue_size=4)
         self.pub_pc_seg = rospy.Publisher("/stereo_down/scaled_x2/points2_seg", PointCloud2, queue_size=4)
+        self.pub_pc_inst = rospy.Publisher("/stereo_down/scaled_x2/points2_inst", PointCloud2, queue_size=4)
 
         # Set classification timer
         rospy.Timer(rospy.Duration(self.period), self.run)
@@ -148,21 +174,29 @@ class Pointcloud_Seg:
             pred_sub[i,4] = color[1]
             pred_sub[i,5] = color[2]
 
-        
-        save = False
-        if save:
-            t = rospy.Time.now()
-            fout_proj = open("/home/miguel/Desktop/test_ros_subscriber/out/pc_np"+str(t)+".obj", 'w')
-            for i in range(pc_np.shape[0]):
-                fout_proj.write('v %f %f %f %d %d %d\n' % (pc_np[i,0], pc_np[i,1], pc_np[i,2], pc_np[i,3], pc_np[i,4], pc_np[i,5]))
-
-
         pc_base = self.array2pc(header, pc_np_base)
         pc_seg = self.array2pc(header, pred_sub)
 
         # Publish
-        self.pub_pc_used.publish(pc_base)
+        self.pub_pc_base.publish(pc_base)
         self.pub_pc_seg.publish(pc_seg)
+
+        # TODO DOWN PRED?
+
+        instances_ref = get_instances.get_instances(pred_sub, self.labels, self.dim, self.rad_p, self.dim, self.rad_v, self.min_p, ref=True)  # get instances ref
+
+        if instances_ref is None: # if instances were not found
+            return
+
+        for i in range(instances_ref.shape[0]):
+            color = self.col_inst[instances_ref[i,7]]
+            instances_ref[i,3] = color[0]
+            instances_ref[i,4] = color[1]
+            instances_ref[i,5] = color[2]
+        
+        
+        pc_inst = self.array2pc(header, instances_ref)
+        self.pub_pc_inst.publish(pc_inst)
 
         time = rospy.Time.now()-t0
         rospy.loginfo('[%s]: Pc flipping took %s seconds', self.name, time.secs + time.nsecs*1e-9)
