@@ -110,8 +110,11 @@ def sample_data(data, num_sample):
         if N > num_sample, we will randomly keep num_sample of them.
         if N < num_sample, we will randomly duplicate samples.
     """
+    empty = list()
     N = data.shape[0]
-    if (N == num_sample):
+    if (N == 0):
+        return data, empty
+    elif (N == num_sample):
         return data, range(N)
     elif (N > num_sample):
         sample = np.random.choice(N, num_sample)
@@ -123,7 +126,10 @@ def sample_data(data, num_sample):
 
 def sample_data_label(data, label, num_sample):
     new_data, sample_indices = sample_data(data, num_sample)
-    new_label = label[sample_indices]
+    if len(sample_indices) != 0:
+        new_label = label[sample_indices]
+    else:
+        new_label = np.array([])
     return new_data, new_label
     
 def room2blocks(data, label, num_point, block_size=1.0, stride=1.0,
@@ -152,7 +158,7 @@ def room2blocks(data, label, num_point, block_size=1.0, stride=1.0,
     limit = np.amax(data, 0)[0:3]
 
     if block_size == 0.1:
-        lessthan = 100
+        lessthan = 30
     if block_size == 0.2:
         lessthan = 400
     print(lessthan)
@@ -197,6 +203,8 @@ def room2blocks(data, label, num_point, block_size=1.0, stride=1.0,
        # randomly subsample data
        block_data_sampled, block_label_sampled = \
            sample_data_label(block_data, block_label, num_point)
+       if block_label_sampled.size == 0:
+           continue
        block_data_list.append(np.expand_dims(block_data_sampled, 0))
        block_label_list.append(np.expand_dims(block_label_sampled, 0))
             
