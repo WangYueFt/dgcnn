@@ -172,8 +172,10 @@ def eval_one_epoch(sess, ops, room_path, out_data_label_filename, out_gt_label_f
       pts[:,3:6] *= 255.0
       pred = pred_label[b, :]
 
+      g_classes, g_class2label, g_label2color = indoor3d_util.get_info_classes(path_cls)
+
       for i in range(NUM_POINT):
-        g_classes, g_class2label, g_label2color = indoor3d_util.get_info_classes(path_cls)
+
         color = g_label2color[pred[i]]
         color_gt = g_label2color[current_label[start_idx+b, i]]
 
