@@ -31,7 +31,7 @@ class Pointcloud_Seg:
         # Params inference
         self.period = 1
         self.batch_size = 1
-        self.points_sub = 128 # 256 512
+        self.points_sub = 256 # 128 256 512
         self.block_sub = 0.1
         self.stride_sub = 0.1
         self.gpu_index = 0
@@ -59,7 +59,7 @@ class Pointcloud_Seg:
         self.rad_p = 0.03
         self.rad_v = 0.03
         self.dim = 2
-        self.min_p = 40 # 80 140
+        self.min_p = 80 # 40 80 140
         
         
         self.model_path = "/home/miguel/Desktop/test_ros_subscriber/4_128_11_c7/model.ckpt"
@@ -181,8 +181,14 @@ class Pointcloud_Seg:
         self.pub_pc_base.publish(pc_base)
         self.pub_pc_seg.publish(pc_seg)
 
-        # TODO DOWN PRED?
 
+        if self.points_sub != 128:                  # if subsampling
+
+            down = 128/self.points_sub    
+            n_idx_pred_sub_down = int(pred_sub.shape[0] * down)  
+            idx_pred_sub_down = np.random.choice(pred_sub.shape[0], n_idx_pred_sub_down, replace=False)
+            pred_sub = pred_sub[idx_pred_sub_down, 0:7]     # downsample prediciton
+        
         instances_ref = get_instances.get_instances(pred_sub, self.labels, self.dim, self.rad_p, self.dim, self.rad_v, self.min_p, ref=True)  # get instances ref
 
         if instances_ref is None: # if instances were not found
@@ -197,7 +203,7 @@ class Pointcloud_Seg:
         
         pc_inst = self.array2pc(header, instances_ref)
         self.pub_pc_inst.publish(pc_inst)
-
+        
         time = rospy.Time.now()-t0
         rospy.loginfo('[%s]: Pc flipping took %s seconds', self.name, time.secs + time.nsecs*1e-9)
 
