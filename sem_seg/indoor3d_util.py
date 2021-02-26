@@ -158,7 +158,7 @@ def room2blocks(data, label, num_point, block_size=1.0, stride=1.0,
     limit = np.amax(data, 0)[0:3]
 
     if block_size == 0.1:
-        lessthan = 30
+        lessthan = 100
     if block_size == 0.2:
         lessthan = 400
     print(lessthan)
@@ -207,9 +207,15 @@ def room2blocks(data, label, num_point, block_size=1.0, stride=1.0,
            continue
        block_data_list.append(np.expand_dims(block_data_sampled, 0))
        block_label_list.append(np.expand_dims(block_label_sampled, 0))
-            
-    return np.concatenate(block_data_list, 0), \
-           np.concatenate(block_label_list, 0)
+       
+
+    if len(block_data_list) > 0:
+       data_batch = np.concatenate(block_data_list, 0)
+       label_batch = np.concatenate(block_label_list, 0)
+       return data_batch, label_batch
+    else:
+       return np.array([]), np.array([])
+
 
 
 def room2blocks_plus(data_label, num_point, block_size, stride,
@@ -272,17 +278,21 @@ def room2blocks_plus_normalized_parsed(data_label, max_data, num_point, block_si
     
     data_batch, label_batch = room2blocks(data, label, num_point, block_size, stride,
                                           random_sample, sample_num, sample_aug)
-    new_data_batch = np.zeros((data_batch.shape[0], num_point, 9))
-    for b in range(data_batch.shape[0]):
-        new_data_batch[b, :, 6] = data_batch[b, :, 0]/max_data[0]
-        new_data_batch[b, :, 7] = data_batch[b, :, 1]/max_data[1]
-        new_data_batch[b, :, 8] = data_batch[b, :, 2]/max_data[2]
-        minx = min(data_batch[b, :, 0])
-        miny = min(data_batch[b, :, 1])
-        data_batch[b, :, 0] -= (minx+block_size/2)
-        data_batch[b, :, 1] -= (miny+block_size/2)
-    new_data_batch[:, :, 0:6] = data_batch
-    return new_data_batch, label_batch
+
+    if data_batch.size != 0:
+        new_data_batch = np.zeros((data_batch.shape[0], num_point, 9))
+        for b in range(data_batch.shape[0]):
+            new_data_batch[b, :, 6] = data_batch[b, :, 0]/max_data[0]
+            new_data_batch[b, :, 7] = data_batch[b, :, 1]/max_data[1]
+            new_data_batch[b, :, 8] = data_batch[b, :, 2]/max_data[2]
+            minx = min(data_batch[b, :, 0])
+            miny = min(data_batch[b, :, 1])
+            data_batch[b, :, 0] -= (minx+block_size/2)
+            data_batch[b, :, 1] -= (miny+block_size/2)
+        new_data_batch[:, :, 0:6] = data_batch
+        return new_data_batch, label_batch
+    else:
+        return np.array([]), np.array([])
 
 
 def room2blocks_wrapper_normalized(data_label_filename, num_point, block_size=1.0, stride=1.0,

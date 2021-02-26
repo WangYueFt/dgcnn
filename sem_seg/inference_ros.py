@@ -159,10 +159,16 @@ class Pointcloud_Seg:
         xyz_max = np.amax(pc_np, axis=0)[0:3]   # get pointcloud maxs
         data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized_parsed(pc_np,  xyz_max, self.points_sub, block_size=self.block_sub, stride=self.stride_sub, random_sample=False, sample_num=None, sample_aug=1) # subsample PC for evaluation
         
+        if data_sub.size == 0:
+            print("no data sub")
+            return
+
+
         with tf.Graph().as_default():
             pred_sub = self.evaluate(data_sub, label_sub, xyz_max)  # evaluate PC
 
         if pred_sub.size == 0:
+            print("no pred sub")
             return
 
         pred_sub[:, 0:3] += xyz_min  # return to initial position
@@ -192,6 +198,7 @@ class Pointcloud_Seg:
         instances_ref = get_instances.get_instances(pred_sub, self.labels, self.dim, self.rad_p, self.dim, self.rad_v, self.min_p, ref=True)  # get instances ref
 
         if instances_ref is None: # if instances were not found
+            print("no isntances found")
             return
 
         for i in range(instances_ref.shape[0]):
