@@ -167,6 +167,7 @@ if __name__=='__main__':
                         start = time.time()
                         with tf.Graph().as_default():
                             pred_sub = evaluate(data_sub, label_sub, xyz_max, sess, ops)  # evaluate PC
+                        pred_sub = np.unique(pred_sub, axis=0)                            # delete duplicates from room2blocks
                         pred_sub[:, 0:3] += xyz_min                                       # recover PC's original position
                         end = time.time()
                         time_eval = end - start
