@@ -35,7 +35,7 @@ class Pointcloud_Seg:
         self.block_sub = 0.1
         self.stride_sub = 0.1
         self.gpu_index = 0
-        self.sub = 0.1
+        self.desired_points = int(5000/(128/self.points_sub))
 
 
         # Params get_instance
@@ -59,7 +59,7 @@ class Pointcloud_Seg:
         self.rad_p = 0.03
         self.rad_v = 0.03
         self.dim = 2
-        self.min_p = 80 # 40 80 140
+        self.min_p = 35 # 40 80 140
         
         
         self.model_path = "/home/miguel/Desktop/test_ros_subscriber/4_128_11_c7/model.ckpt"
@@ -148,8 +148,8 @@ class Pointcloud_Seg:
             self.init = True
 
         pc_np = self.pc2array(pc)
-
-        if pc_np.shape[0] < 4000:
+        if pc_np.shape[0] < 2000:
+            print("not enough input points")
             return
 
         pc_np[:, 2] *= -1  # flip Z axis
@@ -158,7 +158,7 @@ class Pointcloud_Seg:
         pc_np[:, 0:3] -= xyz_min                # move pointcloud to origin
         xyz_max = np.amax(pc_np, axis=0)[0:3]   # get pointcloud maxs
         data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized_parsed(pc_np,  xyz_max, self.points_sub, block_size=self.block_sub, stride=self.stride_sub, random_sample=False, sample_num=None, sample_aug=1) # subsample PC for evaluation
-        
+
         if data_sub.size == 0:
             print("no data sub")
             return
@@ -171,6 +171,7 @@ class Pointcloud_Seg:
             print("no pred sub")
             return
 
+        pred_sub = np.unique(pred_sub, axis=0)
         pred_sub[:, 0:3] += xyz_min  # return to initial position
 
         pc_np_base = pred_sub.copy()
@@ -195,6 +196,7 @@ class Pointcloud_Seg:
             idx_pred_sub_down = np.random.choice(pred_sub.shape[0], n_idx_pred_sub_down, replace=False)
             pred_sub = pred_sub[idx_pred_sub_down, 0:7]     # downsample prediciton
         
+        print(pred_sub.shape)
         instances_ref = get_instances.get_instances(pred_sub, self.labels, self.dim, self.rad_p, self.dim, self.rad_v, self.min_p, ref=True)  # get instances ref
 
         if instances_ref is None: # if instances were not found
@@ -222,10 +224,11 @@ class Pointcloud_Seg:
 
         if pc_np.size > 0:
 
-            if self.sub != 1:    # subsample pc_np
-                n_idx_sub = int(pc_np.shape[0] * 0.1)
-                idx_sub = np.random.choice(pc_np.shape[0], n_idx_sub, replace=False)
-                pc_np = pc_np[idx_sub, 0:4]
+            # reduce pointcloud to desired number of points
+            if self.desired_points != 0:
+                if pc_np.shape[0] > self.desired_points:
+                    idx_sub = np.random.choice(pc_np.shape[0], self.desired_points, replace=False)
+                    pc_np = pc_np[idx_sub, 0:4]
 
             rgb_list = list()
 
