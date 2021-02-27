@@ -46,8 +46,8 @@ class Pointcloud_Flip:
         self.new_pc = False
 
         # Set image subscriber
-        #pc_sub = message_filters.Subscriber('/voxel_grid/output', PointCloud2)
-        pc_sub = message_filters.Subscriber('/stereo_down/scaled_x2/points2', PointCloud2)
+        pc_sub = message_filters.Subscriber('/stereo_down/scaled_x2/points2_filtered', PointCloud2)
+        #pc_sub = message_filters.Subscriber('/stereo_down/scaled_x2/points2', PointCloud2)
         info_sub = message_filters.Subscriber('/stereo_down/left/camera_info', CameraInfo)
         ts_image = message_filters.TimeSynchronizer([pc_sub, info_sub], 10)
         ts_image.registerCallback(self.cb_pc)
@@ -98,7 +98,12 @@ class Pointcloud_Flip:
         # TODO flip pc
         print("i have pc, lets make ir array")
 
-        pc_np = self.pc2array(pc, sub=0.1)
+        pc_np = self.pc2array(pc, sub=1)
+
+        if pc_np.shape[0] < 2000:
+            print("not enough input points")
+            return
+            
         pc_np_flipped = pc_np.copy()
         print(pc_np.shape)
         pc_np_flipped[:, 2] *= -1  # flip Z axis
@@ -128,30 +133,31 @@ class Pointcloud_Flip:
         gen = pc2.read_points(ros_pc, skip_nans=True)
         pc_np = np.array(list(gen))
 
-        if sub != 1:    # subsample pc_np
-            n_idx_sub = int(pc_np.shape[0] * 0.1)
-            idx_sub = np.random.choice(pc_np.shape[0], n_idx_sub, replace=False)
-            pc_np = pc_np[idx_sub, 0:4]
+        if pc_np.size > 0:
+            if sub != 1:    # subsample pc_np
+                n_idx_sub = int(pc_np.shape[0] * sub)
+                idx_sub = np.random.choice(pc_np.shape[0], n_idx_sub, replace=False)
+                pc_np = pc_np[idx_sub, 0:4]
 
-        rgb_list = list()
+            rgb_list = list()
 
 
-        for rgb in pc_np[...,3]:
-            # cast float32 to int so that bitwise operations are possible
-            s = struct.pack('>f' ,rgb)
-            i = struct.unpack('>l',s)[0]
-            # you can get back the float value by the inverse operations
-            pack = ctypes.c_uint32(i).value
-            r = (pack & 0x00FF0000)>> 16
-            g = (pack & 0x0000FF00)>> 8
-            b = (pack & 0x000000FF)
-            rgb_np = np.array([r,g,b])
-            rgb_list.append(rgb_np)
+            for rgb in pc_np[...,3]:
+                # cast float32 to int so that bitwise operations are possible
+                s = struct.pack('>f' ,rgb)
+                i = struct.unpack('>l',s)[0]
+                # you can get back the float value by the inverse operations
+                pack = ctypes.c_uint32(i).value
+                r = (pack & 0x00FF0000)>> 16
+                g = (pack & 0x0000FF00)>> 8
+                b = (pack & 0x000000FF)
+                rgb_np = np.array([r,g,b])
+                rgb_list.append(rgb_np)
 
-        rgb = np.vstack(rgb_list)
+            rgb = np.vstack(rgb_list)
 
-        pc_np = np.delete(pc_np, 3, 1) 
-        pc_np = np.concatenate((pc_np, rgb), axis=1)
+            pc_np = np.delete(pc_np, 3, 1) 
+            pc_np = np.concatenate((pc_np, rgb), axis=1)
         return pc_np
 
     def array2pc(self, header, array):
