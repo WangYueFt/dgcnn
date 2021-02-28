@@ -18,10 +18,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--path_data', help='folder with train test data')
 parser.add_argument('--path_cls', help='path to classes txt.')
 parser.add_argument('--model_path', required=True, help='model checkpoint file path')
-parser.add_argument('--points_sub', type=int, default=128, help='Point number sub [default: 4096]')
+parser.add_argument('--points_sub', type=int, default=256, help='Point number sub [default: 4096]')
 parser.add_argument('--points_proj', type=int, default=0, help='Point number proj [default: 4096]')
 parser.add_argument('--test_name', help='name of the test')
-parser.add_argument('--down_pred', default = 0, help='downsample prediction')
+parser.add_argument('--down_pred', default = True, help='downsample prediction')
 
 parsed_args = parser.parse_args()
 
@@ -125,7 +125,7 @@ if __name__=='__main__':
 
         for root, dirs, files in os.walk(path_data):        # for each folder
 
-            for file in enumerate(sorted(files)):           # for each file           # TODO AL FINAL FINAL LEER DE ROS
+            for file in enumerate(sorted(files)):           # for each file           
 
                 if re.search("\.(txt)$", file[1]):          # if its a txt       
                     print("working on: " + str(file[1]))
@@ -134,7 +134,7 @@ if __name__=='__main__':
                     data_label_full = np.loadtxt(filepath)  # read from txt (not on xyz origin)
                     os.remove(filepath)
 
-                    if data_label_full.shape[0]> 200000: # check pointcloud points, a good PC has ~ 480k points
+                    if data_label_full.shape[0]> 2000: # 200000 check pointcloud points, a good PC has ~ 480k points  -> 200K for unfiltered PC, 2k for filtered PC
 
                         # init times that may not be calculated
                         time_down_pred = 0
@@ -142,9 +142,8 @@ if __name__=='__main__':
                         time_proj = 0
 
                         # subsample data_label_full to match ros subscription
-                        reduction = 0.1  
-                        n_idx_full_sub = int(data_label_full.shape[0] * reduction)
-                        idx_full_sub = np.random.choice(data_label_full.shape[0], n_idx_full_sub, replace=False)
+                        desired_points = int(5000/(128/points_sub))
+                        idx_full_sub = np.random.choice(data_label_full.shape[0], desired_points, replace=False)
                         data_label_full_sub = data_label_full[idx_full_sub, 0:6]
 
 
@@ -181,9 +180,9 @@ if __name__=='__main__':
                             fout_sub_col.write('v %f %f %f %d %d %d %d\n' % (pred_sub[i,0], pred_sub[i,1], pred_sub[i,2], color[0], color[1], color[2], pred_sub[i,6]))
 
 
-                        if down_pred != 0:                  # if subsampling of prediciton is wanted
+                        if down_pred == True:                  # if subsampling of prediciton is wanted
                             start = time.time()
-                            down = float(1/(2**down_pred))                  # down_pred = 1, to go down 1, down_pred = 2, to go down 2, always staying in te same block stride
+                            down = 128/points_sub                 # down_pred to 128
                             n_idx_pred_sub_down = int(pred_sub.shape[0] * down)  
                             idx_pred_sub_down = np.random.choice(pred_sub.shape[0], n_idx_pred_sub_down, replace=False)
                             pred_sub = pred_sub[idx_pred_sub_down, 0:7]     # downsample prediciton
@@ -236,7 +235,7 @@ if __name__=='__main__':
 
                         if instances_ref is not None: # if instances were found
 
-                            if points_proj != 0:    # if projection is wanted
+                            if points_proj != 0:    # if projection  # TODO YA NO SE PUEDE PROYECTAR, A MENOS QUE SE HAGAN 2 REDUCCIONES AL PRINCIPIO, UNA MENOR PARA PODER PROYECTAR SOBRE ESA, quiza habra que bajar fitler..
                                 
                                 # determine projection number of points
                                 if block_proj == 0.2: 
