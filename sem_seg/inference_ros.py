@@ -171,7 +171,7 @@ class Pointcloud_Seg:
             print("no pred sub")
             return
 
-        pred_sub = np.unique(pred_sub, axis=0)
+        pred_sub = np.unique(pred_sub, axis=0) # delete duplicates from room2blocks
         pred_sub[:, 0:3] += xyz_min  # return to initial position
 
         pc_np_base = pred_sub.copy()
@@ -214,7 +214,7 @@ class Pointcloud_Seg:
         self.pub_pc_inst.publish(pc_inst)
         
         time = rospy.Time.now()-t0
-        rospy.loginfo('[%s]: Pc flipping took %s seconds', self.name, time.secs + time.nsecs*1e-9)
+        rospy.loginfo('[%s]: Pc processing took %s seconds', self.name, time.secs + time.nsecs*1e-9)
 
 
     
