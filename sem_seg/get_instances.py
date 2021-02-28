@@ -133,89 +133,81 @@ def write_ply(data, path_out):
     f.close()
 
 
-def refine_instances(instances_valve, data_label_pipe, rad_ref = 0.1):
+def refine_instances(instances, ref_data, rad_ref = 0.1):
 
-    for i, inst in enumerate(instances_valve):  # for each valve
-        c_inst = inst[0,6]                      # get class (could be fixed)
+    stolen_list = list()
+
+    for i, inst in enumerate(instances):  # for each instnace
+
+        stolen_points_list = list()
+        stolen_idx = inst.shape[0]
+
+        c_inst = inst[0,6]                      # get class 
         n_inst = inst[0,7]                      # get inst number
         central_point = np.mean(inst, axis=0)[0:3] # get central_point
         
         del_list_point = list()
 
-        for k, point in enumerate(data_label_pipe): # for each point of the remaining pointcloud not in valves
+        for k, point in enumerate(ref_data):        # for each point of ref_data
             p = point[0:3]                          # get point coordinates
             d = get_distance(central_point,p,2)     # calculate distance between point and central_point
             
             if d < rad_ref:                         # if distance lower than thr
-                point[6] = c_inst                   # point converted to class valve
+                stolen_idx = stolen_idx + 1           
+                stolen_point = np.array([stolen_idx, point[6]]) # annotate idx from new instance and original class
+                stolen_points_list.append(stolen_point)
+
+                point[6] = c_inst                   # point converted to actual class
                 point = np.append(point, n_inst)    # point converted to actual instance number
                 inst = np.vstack([inst, point])     # append point to actual instance
-                del_list_point.append(k)            # save point index from remaining pointcloud not in valves
-        instances_valve[i] = inst                   # new valve instance
-        data_label_pipe = np.delete(data_label_pipe, del_list_point, 0) # del point from remaining pointcloud not in valves
+                del_list_point.append(k)            # save point index from ref_data to delete later
 
-    return instances_valve, data_label_pipe
+        stolen_list.append(stolen_points_list)
+        instances[i] = inst                   # new  instance
+        ref_data = np.delete(ref_data, del_list_point, 0) # del point from remaining pointcloud not in valves
+
+    return instances, ref_data, stolen_list
 
 
-def get_instances(data_label, labels, dim_p, rad_p, dim_v, rad_v, min_points, rad_ref = 0.1, ref=False):
-
-    data_label_pipe = data_label[data_label[:,6] == [labels["pipe"]]]       # get data label pipe
-    data_label_valve = data_label[data_label[:,6] == [labels["valve"]]]     # get data label pipe
+def get_instances(data_label, dim, rad, min_points, ref=False, ref_data=0, ref_rad=0.1):
 
     n_inst = 1
 
-    # get instances valves
-    instances_valve = list()
-    while data_label_valve.size > 0:                                        # while there are valve points
-        actual_idx = [0]                                                    # init idx
-        actual_inst = data_label_valve[actual_idx]                          # init actual inst
-        inst = actual_inst                                                  # init inst
-        data_label_valve = np.delete(data_label_valve, actual_idx, axis=0)  # delete valve points
-        while actual_idx:                                                   # while idx exists
-            actual_idx = grow(data_label_valve, actual_inst, rad_v, dim_v)  # idx grow
-            actual_inst = data_label_valve[actual_idx]                      # get new actual inst
-            inst = np.vstack([inst, actual_inst])                           # append to inst
-            data_label_valve = np.delete(data_label_valve, actual_idx, axis=0) # delete valve points
-        if inst.shape[0] > min_points:                                      # save instance if  bigger than min
+    # get instances 
+    instances = list()
+    while data_label.size > 0:                                        # while there are  points
+        actual_idx = [0]                                              # init idx
+        actual_inst = data_label[actual_idx]                          # init actual inst
+        inst = actual_inst                                            # init inst
+        data_label = np.delete(data_label, actual_idx, axis=0)        # delete  points
+        while actual_idx:                                             # while idx exists
+            actual_idx = grow(data_label, actual_inst, rad_v, dim_v)  # idx grow
+            actual_inst = data_label[actual_idx]                      # get new actual inst
+            inst = np.vstack([inst, actual_inst])                     # append to inst
+            data_label = np.delete(data_label, actual_idx, axis=0)    # delete  points
+        if inst.shape[0] > min_points:                                # save instance if  bigger than min
             inst = np.insert(inst, 7, n_inst, axis=1)
-            instances_valve.append(inst)
+            instances.append(inst)
             n_inst = n_inst + 1
 
     sys.stdout.write('\n')
 
     if ref:  # if ref -> refine isntance
         start = time.time()
-        instances_valve, data_label_pipe = refine_instances(instances_valve, data_label_pipe, rad_ref)
+        instances, ref_data, stolen_list = refine_instances(instances, ref_data, ref_rad)
         end = time.time()
         time_ref = end - start
 
-    # get instances pipe
-    instances_pipe = list()
-    while data_label_pipe.size > 0:
-        actual_idx = [0]
-        actual_inst = data_label_pipe[actual_idx]
-        inst = actual_inst
-        data_label_pipe = np.delete(data_label_pipe, actual_idx, axis=0)
-        while actual_idx:
-            actual_idx = grow(data_label_pipe, actual_inst, rad_p, dim_p)
-            actual_inst = data_label_pipe[actual_idx]
-            inst = np.vstack([inst, actual_inst])
-            data_label_pipe = np.delete(data_label_pipe, actual_idx, axis=0)
-        if inst.shape[0] > min_points:
-            inst = np.insert(inst, 7, n_inst, axis=1)
-            instances_pipe.append(inst)
-            n_inst = n_inst + 1
-
     sys.stdout.write('\n')
 
-    instances = instances_valve + instances_pipe
+    instances = instances + instances_pipe
     if len(instances)!= 0:
         instances = np.vstack(instances)  # deleting this line, the ouput becomes a list of numpys
     else:
         print("NO INSTANCES FOUND")
         instances = None
 
-    return instances
+    return instances, ref_data, stolen_list
         
 
 if __name__ == "__main__":
@@ -224,9 +216,9 @@ if __name__ == "__main__":
     parser.add_argument('--path_run', help='path to the run folder.')
     parser.add_argument('--path_cls', help='path to the class file.')
     parser.add_argument('--dim_v', default=2, help='dim to calculate distance for growing (2 or 3).')
-    parser.add_argument('--rad_v', default=0.02, help='max rad for growing (2 or 3).')
+    parser.add_argument('--rad_v', default=0.03, help='max rad for growing (2 or 3).')
     parser.add_argument('--dim_p', default=2, help='dim to calculate distance for growing (2 or 3).')
-    parser.add_argument('--rad_p', default=0.02, help='max rad for growing (2 or 3).')
+    parser.add_argument('--rad_p', default=0.03, help='max rad for growing (2 or 3).')
     parser.add_argument('--min_points', default=0, help='min points to not delete an instance')
     parser.add_argument('--rad_ref', default=0.1, help='rad valve')
     parser.add_argument('--test_name', help='name of the test')
@@ -267,9 +259,35 @@ if __name__ == "__main__":
         pred = np.delete(pred,[6],1)
         gt = np.hstack([pred[...,0:6],gt])  
 
-        gt_inst = get_instances(gt, labels, dim_p, rad_p, dim_v, rad_v, min_points)
-        pred_inst = get_instances(pred, labels, dim_p, rad_p, dim_v, rad_v, min_points)
-        pred_inst_ref = get_instances(pred, labels, dim_p, rad_p, dim_v, rad_v, min_points, rad_ref, ref=True)
+
+        gt_pipe = gt[gt[:,6] == [labels["pipe"]]]       # get data label pipe
+        gt_valve = gt[gt[:,6] == [labels["valve"]]]     # get data label pipe
+        pred_pipe = pred[pred[:,6] == [labels["pipe"]]]       # get data label pipe
+        pred_valve = pred[pred[:,6] == [labels["valve"]]]     # get data label pipe
+
+
+        gt_inst_valve, _, _ = get_instances(gt_valve, dim_v, rad_v, min_points)
+        gt_inst_pipe, _, _  = get_instances(gt_pipe, dim_p, rad_p, min_points)
+        i = len(set(gt_inst_valve[:,7]))
+        gt_inst_pipe[:,7] = gt_inst_pipe[:,7]+i
+        gt_int = np.concatenate((gt_inst_valve, gt_inst_pipe), axis=0)
+
+        pred_inst_valve, _, _  = get_instances(pred_valve, dim_v, rad_v, min_points)
+        pred_inst_pipe, _, _  = get_instances(pred_pipe, dim_p, rad_p, min_points)
+        i = len(set(pred_inst_valve[:,7]))
+        gt_inst_pipe[:,7] = gt_inst_pipe[:,7]+i
+        pred_inst = np.concatenate((pred_inst_valve, pred_inst_pipe), axis=0)
+
+        pred_inst_ref_valve, pred_pipe_ref, stolen_list = get_instances(pred_valve, dim_v, rad_v, min_points, ref=True, ref_data = pred_pipe, rad_ref = 0.1)
+
+        # SIMULAR QUE HAY UN MATCHING Y SE DESCARTA LA VALVULA, COGER PUNTOS ROBADOS Y DEVOLVERLOS A PIPE, HACER PRINTS ANTES Y DESPUES
+        pred_inst_ref_pipe, _, _  = get_instances(pred_pipe_ref, dim_p, rad_p, min_points)
+        i = len(set(pred_inst_ref_valve[:,7]))
+        gt_inst_pipe[:,7] = gt_inst_pipe[:,7]+i
+        pred_inst_ref = np.concatenate((pred_inst_ref_valve, pred_inst_ref_pipe), axis=0)
+
+
+
 
         file_path_out = os.path.join(path_infer, name + "_gt_inst.ply")
         if gt_inst is not None:
