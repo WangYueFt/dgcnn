@@ -83,10 +83,7 @@ def grow(data, points, min_dist, dim):
 
 def get_color(instance):
 
-    colors = [[0, 255, 0],
-              [0, 0, 255],
-              [255, 0, 0],
-              [255, 255, 0],
+    colors = [[255, 255, 0],
               [255, 0, 255],
               [0, 255, 255],
               [0, 128, 0],
@@ -97,7 +94,10 @@ def get_color(instance):
               [100, 0, 0],
               [100, 0, 255],
               [0, 255, 100],
-              [255, 100, 0]]
+              [255, 100, 0],
+              [0, 255, 0],
+              [0, 0, 255],
+              [255, 0, 0],]
 
     n = int(instance/len(colors))
     i = instance-(len(colors)*n)
@@ -153,10 +153,9 @@ def refine_instances(instances, ref_data, rad_ref = 0.1):
             d = get_distance(central_point,p,2)     # calculate distance between point and central_point
             
             if d < rad_ref:                         # if distance lower than thr
-                stolen_idx = stolen_idx + 1           
                 stolen_point = np.array([stolen_idx, point[6]]) # annotate idx from new instance and original class
                 stolen_points_list.append(stolen_point)
-
+                stolen_idx = stolen_idx +1
                 point[6] = c_inst                   # point converted to actual class
                 point = np.append(point, n_inst)    # point converted to actual instance number
                 inst = np.vstack([inst, point])     # append point to actual instance
@@ -172,6 +171,7 @@ def refine_instances(instances, ref_data, rad_ref = 0.1):
 def get_instances(data_label, dim, rad, min_points, ref=False, ref_data=0, ref_rad=0.1):
 
     n_inst = 1
+    stolen_list = list()
 
     # get instances 
     instances = list()
@@ -200,18 +200,15 @@ def get_instances(data_label, dim, rad, min_points, ref=False, ref_data=0, ref_r
 
     sys.stdout.write('\n')
 
-    instances = instances + instances_pipe
-    if len(instances)!= 0:
-        instances = np.vstack(instances)  # deleting this line, the ouput becomes a list of numpys
-    else:
+    if len(instances)== 0:
         print("NO INSTANCES FOUND")
-        instances = None
 
     return instances, ref_data, stolen_list
         
 
 if __name__ == "__main__":
 
+    '''
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_run', help='path to the run folder.')
     parser.add_argument('--path_cls', help='path to the class file.')
@@ -234,6 +231,18 @@ if __name__ == "__main__":
     min_points = int(parsed_args.min_points)
     rad_ref = float(parsed_args.rad_ref)
     test_name = parsed_args.test_name
+    '''
+
+    path_run = "/home/miguel/Desktop/test_ros_subscriber/4_1_256_11_1/"
+    path_cls = "/home/miguel/Desktop/test_ros_subscriber/4.txt"
+    dim_v = 2
+    rad_v = 0.2
+    dim_p = 2
+    rad_p = 0.3
+    min_points = 70
+    rad_ref = 0.1
+    test_name = "normal_pool2"
+    
 
     path_infer = os.path.join(path_run, 'dump_' + test_name)
 
@@ -266,25 +275,111 @@ if __name__ == "__main__":
         pred_valve = pred[pred[:,6] == [labels["valve"]]]     # get data label pipe
 
 
-        gt_inst_valve, _, _ = get_instances(gt_valve, dim_v, rad_v, min_points)
-        gt_inst_pipe, _, _  = get_instances(gt_pipe, dim_p, rad_p, min_points)
-        i = len(set(gt_inst_valve[:,7]))
-        gt_inst_pipe[:,7] = gt_inst_pipe[:,7]+i
-        gt_int = np.concatenate((gt_inst_valve, gt_inst_pipe), axis=0)
+        gt_inst_valve_list, _, _ = get_instances(gt_valve, dim_v, rad_v, min_points)
+        gt_inst_pipe_list, _, _  = get_instances(gt_pipe, dim_p, rad_p, min_points)
+        i = len(gt_inst_valve_list)
 
-        pred_inst_valve, _, _  = get_instances(pred_valve, dim_v, rad_v, min_points)
-        pred_inst_pipe, _, _  = get_instances(pred_pipe, dim_p, rad_p, min_points)
-        i = len(set(pred_inst_valve[:,7]))
-        gt_inst_pipe[:,7] = gt_inst_pipe[:,7]+i
-        pred_inst = np.concatenate((pred_inst_valve, pred_inst_pipe), axis=0)
+        if len(gt_inst_valve_list)>0:
+            gt_inst_valve = np.vstack(gt_inst_valve_list)
+        if len(gt_inst_pipe_list):
+            gt_inst_pipe = np.vstack(gt_inst_pipe_list)
+            gt_inst_pipe[:,7] = gt_inst_pipe[:,7]+i
 
-        pred_inst_ref_valve, pred_pipe_ref, stolen_list = get_instances(pred_valve, dim_v, rad_v, min_points, ref=True, ref_data = pred_pipe, rad_ref = 0.1)
+        if len(gt_inst_valve_list)>0 and len(gt_inst_pipe_list)>0:
+            gt_inst = np.concatenate((gt_inst_valve, gt_inst_pipe), axis=0)
+        elif len(gt_inst_valve_list)==0 and len(gt_inst_pipe_list)>0:
+            gt_inst = gt_inst_pipe
+        elif len(gt_inst_valve_list)>0 and len(gt_inst_pipe_list)==0:
+            gt_inst = gt_inst_valve
+        else:
+            gt_inst = None
 
-        # SIMULAR QUE HAY UN MATCHING Y SE DESCARTA LA VALVULA, COGER PUNTOS ROBADOS Y DEVOLVERLOS A PIPE, HACER PRINTS ANTES Y DESPUES
-        pred_inst_ref_pipe, _, _  = get_instances(pred_pipe_ref, dim_p, rad_p, min_points)
-        i = len(set(pred_inst_ref_valve[:,7]))
-        gt_inst_pipe[:,7] = gt_inst_pipe[:,7]+i
-        pred_inst_ref = np.concatenate((pred_inst_ref_valve, pred_inst_ref_pipe), axis=0)
+
+
+
+
+        pred_inst_valve_list, _, _  = get_instances(pred_valve, dim_v, rad_v, min_points)
+        pred_inst_pipe_list, _, _  = get_instances(pred_pipe, dim_p, rad_p, min_points)
+        i = len(pred_inst_valve_list)
+
+        if len(pred_inst_valve_list)>0:
+            pred_inst_valve = np.vstack(pred_inst_valve_list)
+        if len(pred_inst_pipe_list)>0:
+            pred_inst_pipe = np.vstack(pred_inst_pipe_list)
+            pred_inst_pipe[:,7] = pred_inst_pipe[:,7]+i
+
+        if len(pred_inst_valve_list)>0 and len(pred_inst_pipe_list)>0:
+            pred_inst = np.concatenate((pred_inst_valve, pred_inst_pipe), axis=0)
+        elif len(pred_inst_valve_list)==0 and len(pred_inst_pipe_list)>0:
+            pred_inst = pred_inst_pipe
+        elif len(pred_inst_valve_list)>0 and len(pred_inst_pipe_list)==0:
+            pred_inst = pred_inst_valve
+        else:
+            pred_inst = None
+
+
+
+        pred_pipe2 = np.copy(pred_pipe)
+
+        pred_inst_ref_valve_list, pred_pipe_ref, stolen_list = get_instances(pred_valve, dim_v, rad_v, min_points, ref=True, ref_data = pred_pipe, ref_rad = 0.1)
+        pred_inst_ref_pipe_list, _, _  = get_instances(pred_pipe_ref, dim_p, rad_p, min_points)
+        i = len(pred_inst_ref_valve_list)
+
+        if len(pred_inst_ref_valve_list)>0:
+            pred_inst_ref_valve = np.vstack(pred_inst_ref_valve_list)
+        if len(pred_inst_ref_pipe_list)>0:
+            pred_inst_ref_pipe = np.vstack(pred_inst_ref_pipe_list)
+            pred_inst_ref_pipe[:,7] = pred_inst_ref_pipe[:,7]+i
+
+        if len(pred_inst_ref_valve_list)>0 and len(pred_inst_ref_pipe_list)>0:
+            pred_inst_ref = np.concatenate((pred_inst_ref_valve, pred_inst_ref_pipe), axis=0)
+        elif len(pred_inst_ref_valve_list)==0 and len(pred_inst_ref_pipe_list)>0:
+            pred_inst_ref = pred_inst_ref_pipe
+        elif len(pred_inst_ref_valve_list)>0 and len(pred_inst_ref_pipe_list)==0:
+            pred_inst_ref = pred_inst_ref_valve
+        else:
+            pred_inst_ref = None
+
+
+        print(pred_pipe.shape)
+        pred_inst_ref2_valve_list, pred_pipe_ref2, stolen_list = get_instances(pred_valve, dim_v, rad_v, min_points, ref=True, ref_data = pred_pipe2, ref_rad = 0.1)
+        print(pred_pipe_ref2.shape)
+
+        matches_list = [None, 2, 1, 2, 2, 1]
+        descart_list = [i for i, x in enumerate(matches_list) if x == None]
+
+        for i, idx in enumerate(descart_list):
+            descarted_points = np.vstack(pred_inst_ref2_valve_list[idx])
+            stolen_idx = list(np.vstack(stolen_list[idx])[:,0].astype(int))
+            stolen_cls = np.vstack(stolen_list[idx])[:,1].astype(int)
+            stolen_cls = stolen_cls.reshape(stolen_cls.shape[0],1)
+            if len(stolen_idx)>0:
+                stolen_points = descarted_points[stolen_idx, :-2]
+                stolen_points = np.concatenate((stolen_points,stolen_cls),axis=1)
+                pred_pipe_ref2 = np.concatenate((pred_pipe_ref2,stolen_points),axis=0)
+
+        print(pred_pipe_ref2)
+        print(labels)
+        for index in sorted(descart_list, reverse=True):
+            del pred_inst_ref2_valve_list[index]
+
+        pred_inst_ref2_pipe_list, _, _  = get_instances(pred_pipe_ref2, dim_p, rad_p, min_points)
+        i = len(pred_inst_ref2_valve_list)
+
+        if len(pred_inst_ref2_valve_list)>0:
+            pred_inst_ref2_valve = np.vstack(pred_inst_ref2_valve_list)
+        if len(pred_inst_ref2_pipe_list)>0:
+            pred_inst_ref2_pipe = np.vstack(pred_inst_ref2_pipe_list)
+            pred_inst_ref2_pipe[:,7] = pred_inst_ref2_pipe[:,7]+i
+
+        if len(pred_inst_ref2_valve_list)>0 and len(pred_inst_ref2_pipe_list)>0:
+            pred_inst_ref2 = np.concatenate((pred_inst_ref2_valve, pred_inst_ref2_pipe), axis=0)
+        elif len(pred_inst_ref2_valve_list)==0 and len(pred_inst_ref2_pipe_list)>0:
+            pred_inst_ref2 = pred_inst_ref2_pipe
+        elif len(pred_inst_ref2_valve_list)>0 and len(pred_inst_ref2_pipe_list)==0:
+            pred_inst_ref2 = pred_inst_ref2_valve
+        else:
+            pred_inst_ref2 = None
 
 
 
@@ -306,3 +401,12 @@ if __name__ == "__main__":
             write_ply(pred_inst_ref, file_path_out)
         else:
             write_ply(null, file_path_out)
+
+        file_path_out = os.path.join(path_infer, name + "_pred_inst_ref2.ply")
+        if pred_inst_ref2 is not None:
+            write_ply(pred_inst_ref2, file_path_out)
+        else:
+            write_ply(null, file_path_out)
+
+
+        # TODO print de ref2
