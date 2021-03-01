@@ -293,5 +293,5 @@ if __name__=='__main__':
                         fout_times.close()
 
                     else:
-                        print("PC discarted as n_points < 200000")
+                        print("PC discarted as n_points < 2000")
                         
