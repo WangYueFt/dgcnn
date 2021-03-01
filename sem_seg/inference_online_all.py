@@ -214,15 +214,78 @@ if __name__=='__main__':
                         dim = 2
                         min_p = minim_points
 
+
+                        # get instances noref
                         start = time.time()
-                        instances_noref = get_instances.get_instances(pred_sub, labels, dim, rad_p, dim, rad_v, min_p, ref=False) # get instances no ref
+                        pred_sub_pipe = pred_sub[pred_sub[:,6] == [labels["pipe"]]]       # get data label pipe
+                        pred_sub_valve = pred_sub[pred_sub[:,6] == [labels["valve"]]]     # get data label pipe
+
+                        instances_noref_valve_list, _, _  = get_instances.get_instances(pred_sub_valve, dim, rad_v, min_p)
+                        instances_noref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe, dim, rad_p, min_p)
+                        i = len(pred_inst_valve_list)
+
+                        if len(instances_noref_valve_list)>0:
+                            instances_noref_valve = np.vstack(instances_noref_valve_list)
+                        if len(instances_noref_pipe_list)>0:
+                            instances_noref_pipe = np.vstack(instances_noref_pipe_list)
+                            instances_noref_pipe[:,7] = instances_noref_pipe[:,7]+i
+
+                        if len(instances_noref_valve_list)>0 and len(instances_noref_pipe_list)>0:
+                            instances_noref = np.concatenate((instances_noref_valve, instances_noref_pipe), axis=0)
+                        elif len(instances_noref_valve_list)==0 and len(instances_noref_pipe_list)>0:
+                            instances_noref = instances_noref_pipe
+                        elif len(instances_noref_valve_list)>0 and len(instances_noref_pipe_list)==0:
+                            instances_noref = instances_noref_valve
+                        else:
+                            instances_noref = None
                         end = time.time()
                         time_inst_noref = end - start
 
+
+                        # get instances ref
                         start = time.time()
-                        instances_ref = get_instances.get_instances(pred_sub, labels, dim, rad_p, dim, rad_v, min_p, ref=True)  # get instances ref
+                        pred_sub_pipe = pred_sub[pred_sub[:,6] == [labels["pipe"]]]       # get data label pipe
+                        pred_sub_valve = pred_sub[pred_sub[:,6] == [labels["valve"]]]     # get data label pipe
+
+                        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, dim, rad_v, min_p, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1))
+
+                        matches_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO matches_list = get_info(instances_ref_valve_list, models_list)
+                        descart_list = [i for i, x in enumerate(matches_list) if x == None]
+
+                        for i, idx in enumerate(descart_list):
+                            descarted_points = np.vstack(instances_ref_valve_list[idx])
+                            stolen_idx = list(np.vstack(stolen_list[idx])[:,0].astype(int))
+                            stolen_cls = np.vstack(stolen_list[idx])[:,1].astype(int)
+                            stolen_cls = stolen_cls.reshape(stolen_cls.shape[0],1)
+                            if len(stolen_idx)>0:
+                                stolen_points = descarted_points[stolen_idx, :-2]
+                                stolen_points = np.concatenate((stolen_points,stolen_cls),axis=1)
+                                pred_sub_pipe_ref = np.concatenate((pred_sub_pipe_ref,stolen_points),axis=0)
+
+                        for index in sorted(descart_list, reverse=True):
+                            del instances_ref_valve_list[index]
+
+                        instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, dim, rad_p, min_p)
+                        i = len(pred_inst_valve_list)
+
+                        if len(instances_ref_valve_list)>0:
+                            instances_ref_valve = np.vstack(instances_ref_valve_list)
+                        if len(instances_ref_pipe_list)>0:
+                            instances_ref_pipe = np.vstack(instances_ref_pipe_list)
+                            instances_ref_pipe[:,7] = instances_ref_pipe[:,7]+i
+
+                        if len(instances_ref_valve_list)>0 and len(instances_ref_pipe_list)>0:
+                            instances_ref = np.concatenate((instances_ref_valve, instances_ref_pipe), axis=0)
+                        elif len(instances_ref_valve_list)==0 and len(instances_ref_pipe_list)>0:
+                            instances_ref = instances_ref_pipe
+                        elif len(instances_ref_valve_list)>0 and len(instances_ref_pipe_list)==0:
+                            instances_ref = instances_ref_valve
+                        else:
+                            instances_ref = None
                         end = time.time()
                         time_inst_ref = end - start
+
+                        if instances_ref is not None: # if instances were found
 
                         fout_inst = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_inst_ref.obj'), 'w')
                         fout_inst_col = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_inst_ref_col.obj'), 'w')
@@ -231,9 +294,7 @@ if __name__=='__main__':
                         for i in range(instances_ref.shape[0]):
                             color = col_inst[instances_ref[i,7]]
                             fout_inst_col.write('v %f %f %f %d %d %d %d %d\n' % (instances_ref[i,0], instances_ref[i,1], instances_ref[i,2], color[0], color[1], color[2], instances_ref[i,6], instances_ref[i,7]))
-            
 
-                        if instances_ref is not None: # if instances were found
 
                             if points_proj != 0:    # if projection  # TODO YA NO SE PUEDE PROYECTAR, A MENOS QUE SE HAGAN 2 REDUCCIONES AL PRINCIPIO, UNA MENOR PARA PODER PROYECTAR SOBRE ESA, quiza habra que bajar fitler..
                                 

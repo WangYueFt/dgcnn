@@ -60,6 +60,7 @@ class Pointcloud_Seg:
         self.rad_v = 0.03
         self.dim = 2
         self.min_p = 35 # 40 80 140
+        self.ref_rad = 0.1
         
         
         self.model_path = "/home/miguel/Desktop/test_ros_subscriber/4_128_11_c7/model.ckpt"
@@ -196,8 +197,45 @@ class Pointcloud_Seg:
             idx_pred_sub_down = np.random.choice(pred_sub.shape[0], n_idx_pred_sub_down, replace=False)
             pred_sub = pred_sub[idx_pred_sub_down, 0:7]     # downsample prediciton
         
-        print(pred_sub.shape)
-        instances_ref = get_instances.get_instances(pred_sub, self.labels, self.dim, self.rad_p, self.dim, self.rad_v, self.min_p, ref=True)  # get instances ref
+        # get instances ref
+        pred_sub_pipe = pred_sub[pred_sub[:,6] == [self.labels["pipe"]]]       # get data label pipe
+        pred_sub_valve = pred_sub[pred_sub[:,6] == [self.labels["valve"]]]     # get data label pipe
+
+        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim, self.rad_v, self.min_p, ref=True, ref_data = pred_sub_pipe, self.ref_rad))
+
+        matches_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO matches_list = get_info(instances_ref_valve_list, models_list)
+        descart_list = [i for i, x in enumerate(matches_list) if x == None]
+
+        for i, idx in enumerate(descart_list):
+            descarted_points = np.vstack(instances_ref_valve_list[idx])
+            stolen_idx = list(np.vstack(stolen_list[idx])[:,0].astype(int))
+            stolen_cls = np.vstack(stolen_list[idx])[:,1].astype(int)
+            stolen_cls = stolen_cls.reshape(stolen_cls.shape[0],1)
+            if len(stolen_idx)>0:
+                stolen_points = descarted_points[stolen_idx, :-2]
+                stolen_points = np.concatenate((stolen_points,stolen_cls),axis=1)
+                pred_sub_pipe_ref = np.concatenate((pred_sub_pipe_ref,stolen_points),axis=0)
+
+        for index in sorted(descart_list, reverse=True):
+            del instances_ref_valve_list[index]
+
+        instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim, self.rad_p, self.min_p)
+        i = len(pred_inst_valve_list)
+
+        if len(instances_ref_valve_list)>0:
+            instances_ref_valve = np.vstack(instances_ref_valve_list)
+        if len(instances_ref_pipe_list)>0:
+            instances_ref_pipe = np.vstack(instances_ref_pipe_list)
+            instances_ref_pipe[:,7] = instances_ref_pipe[:,7]+i
+
+        if len(instances_ref_valve_list)>0 and len(instances_ref_pipe_list)>0:
+            instances_ref = np.concatenate((instances_ref_valve, instances_ref_pipe), axis=0)
+        elif len(instances_ref_valve_list)==0 and len(instances_ref_pipe_list)>0:
+            instances_ref = instances_ref_pipe
+        elif len(instances_ref_valve_list)>0 and len(instances_ref_pipe_list)==0:
+            instances_ref = instances_ref_valve
+        else:
+            instances_ref = None
 
         if instances_ref is None: # if instances were not found
             print("no isntances found")

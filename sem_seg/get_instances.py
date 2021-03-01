@@ -208,7 +208,6 @@ def get_instances(data_label, dim, rad, min_points, ref=False, ref_data=0, ref_r
 
 if __name__ == "__main__":
 
-    '''
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_run', help='path to the run folder.')
     parser.add_argument('--path_cls', help='path to the class file.')
@@ -231,18 +230,6 @@ if __name__ == "__main__":
     min_points = int(parsed_args.min_points)
     rad_ref = float(parsed_args.rad_ref)
     test_name = parsed_args.test_name
-    '''
-
-    path_run = "/home/miguel/Desktop/test_ros_subscriber/4_1_256_11_1/"
-    path_cls = "/home/miguel/Desktop/test_ros_subscriber/4.txt"
-    dim_v = 2
-    rad_v = 0.2
-    dim_p = 2
-    rad_p = 0.3
-    min_points = 70
-    rad_ref = 0.1
-    test_name = "normal_pool2"
-    
 
     path_infer = os.path.join(path_run, 'dump_' + test_name)
 
@@ -341,9 +328,7 @@ if __name__ == "__main__":
             pred_inst_ref = None
 
 
-        print(pred_pipe.shape)
         pred_inst_ref2_valve_list, pred_pipe_ref2, stolen_list = get_instances(pred_valve, dim_v, rad_v, min_points, ref=True, ref_data = pred_pipe2, ref_rad = 0.1)
-        print(pred_pipe_ref2.shape)
 
         matches_list = [None, 2, 1, 2, 2, 1]
         descart_list = [i for i, x in enumerate(matches_list) if x == None]
@@ -358,8 +343,6 @@ if __name__ == "__main__":
                 stolen_points = np.concatenate((stolen_points,stolen_cls),axis=1)
                 pred_pipe_ref2 = np.concatenate((pred_pipe_ref2,stolen_points),axis=0)
 
-        print(pred_pipe_ref2)
-        print(labels)
         for index in sorted(descart_list, reverse=True):
             del pred_inst_ref2_valve_list[index]
 
