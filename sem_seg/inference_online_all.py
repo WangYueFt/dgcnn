@@ -44,7 +44,8 @@ block_sub = 0.1
 stride_sub = 0.1
 block_proj = 0.1
 stride_proj = 0.1
-minim_points = 37
+min_p_v = 30
+min_p_p = 70
 
 
 def evaluate(data, label, xyz_max, sess, ops):
@@ -209,20 +210,20 @@ if __name__=='__main__':
                         }
 
                         # init get_instances parameters
-                        rad_p = 0.03
+                        rad_p = 0.045
                         rad_v = 0.045
                         dim = 2
-                        min_p = minim_points
-
+                        min_p_v = min_p_v
+                        min_p_p = min_p_p
 
                         # get instances noref
                         start = time.time()
                         pred_sub_pipe = pred_sub[pred_sub[:,6] == [labels["pipe"]]]       # get data label pipe
                         pred_sub_valve = pred_sub[pred_sub[:,6] == [labels["valve"]]]     # get data label pipe
 
-                        instances_noref_valve_list, _, _  = get_instances.get_instances(pred_sub_valve, dim, rad_v, min_p)
-                        instances_noref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe, dim, rad_p, min_p)
-                        i = len(pred_inst_valve_list)
+                        instances_noref_valve_list, _, _  = get_instances.get_instances(pred_sub_valve, dim, rad_v, min_p_v)
+                        instances_noref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe, dim, rad_p, min_p_p)
+                        i = len(instances_noref_valve_list)
 
                         if len(instances_noref_valve_list)>0:
                             instances_noref_valve = np.vstack(instances_noref_valve_list)
@@ -246,9 +247,7 @@ if __name__=='__main__':
                         start = time.time()
                         pred_sub_pipe = pred_sub[pred_sub[:,6] == [labels["pipe"]]]       # get data label pipe
                         pred_sub_valve = pred_sub[pred_sub[:,6] == [labels["valve"]]]     # get data label pipe
-
-                        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, dim, rad_v, min_p, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1))
-
+                        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, dim, rad_v, min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
                         matches_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO matches_list = get_info(instances_ref_valve_list, models_list)
                         descart_list = [i for i, x in enumerate(matches_list) if x == None]
 
@@ -265,8 +264,8 @@ if __name__=='__main__':
                         for index in sorted(descart_list, reverse=True):
                             del instances_ref_valve_list[index]
 
-                        instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, dim, rad_p, min_p)
-                        i = len(pred_inst_valve_list)
+                        instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, dim, rad_p, min_p_p)
+                        i = len(instances_ref_valve_list)
 
                         if len(instances_ref_valve_list)>0:
                             instances_ref_valve = np.vstack(instances_ref_valve_list)
@@ -287,13 +286,13 @@ if __name__=='__main__':
 
                         if instances_ref is not None: # if instances were found
 
-                        fout_inst = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_inst_ref.obj'), 'w')
-                        fout_inst_col = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_inst_ref_col.obj'), 'w')
-                        for i in range(instances_ref.shape[0]):
-                            fout_inst.write('v %f %f %f %d %d %d %d %d\n' % (instances_ref[i,0], instances_ref[i,1], instances_ref[i,2], instances_ref[i,3], instances_ref[i,4], instances_ref[i,5], instances_ref[i,6], instances_ref[i,7]))
-                        for i in range(instances_ref.shape[0]):
-                            color = col_inst[instances_ref[i,7]]
-                            fout_inst_col.write('v %f %f %f %d %d %d %d %d\n' % (instances_ref[i,0], instances_ref[i,1], instances_ref[i,2], color[0], color[1], color[2], instances_ref[i,6], instances_ref[i,7]))
+                            fout_inst = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_inst_ref.obj'), 'w')
+                            fout_inst_col = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_inst_ref_col.obj'), 'w')
+                            for i in range(instances_ref.shape[0]):
+                                fout_inst.write('v %f %f %f %d %d %d %d %d\n' % (instances_ref[i,0], instances_ref[i,1], instances_ref[i,2], instances_ref[i,3], instances_ref[i,4], instances_ref[i,5], instances_ref[i,6], instances_ref[i,7]))
+                            for i in range(instances_ref.shape[0]):
+                                color = col_inst[instances_ref[i,7]]
+                                fout_inst_col.write('v %f %f %f %d %d %d %d %d\n' % (instances_ref[i,0], instances_ref[i,1], instances_ref[i,2], color[0], color[1], color[2], instances_ref[i,6], instances_ref[i,7]))
 
 
                             if points_proj != 0:    # if projection  # TODO YA NO SE PUEDE PROYECTAR, A MENOS QUE SE HAGAN 2 REDUCCIONES AL PRINCIPIO, UNA MENOR PARA PODER PROYECTAR SOBRE ESA, quiza habra que bajar fitler..

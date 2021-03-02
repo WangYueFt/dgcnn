@@ -181,7 +181,7 @@ def get_instances(data_label, dim, rad, min_points, ref=False, ref_data=0, ref_r
         inst = actual_inst                                            # init inst
         data_label = np.delete(data_label, actual_idx, axis=0)        # delete  points
         while actual_idx:                                             # while idx exists
-            actual_idx = grow(data_label, actual_inst, rad_v, dim_v)  # idx grow
+            actual_idx = grow(data_label, actual_inst, rad, dim)  # idx grow
             actual_inst = data_label[actual_idx]                      # get new actual inst
             inst = np.vstack([inst, actual_inst])                     # append to inst
             data_label = np.delete(data_label, actual_idx, axis=0)    # delete  points

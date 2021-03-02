@@ -56,10 +56,11 @@ class Pointcloud_Seg:
         13: [0, 255, 100],
         13: [255, 100, 0]
         }
-        self.rad_p = 0.03
-        self.rad_v = 0.03
+        self.rad_p = 0.04
+        self.rad_v = 0.04
         self.dim = 2
-        self.min_p = 35 # 40 80 140
+        self.min_p_v = 30 # 40 80 140
+        self.min_p_p = 60
         self.ref_rad = 0.1
         
         
@@ -200,9 +201,7 @@ class Pointcloud_Seg:
         # get instances ref
         pred_sub_pipe = pred_sub[pred_sub[:,6] == [self.labels["pipe"]]]       # get data label pipe
         pred_sub_valve = pred_sub[pred_sub[:,6] == [self.labels["valve"]]]     # get data label pipe
-
-        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim, self.rad_v, self.min_p, ref=True, ref_data = pred_sub_pipe, self.ref_rad))
-
+        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
         matches_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO matches_list = get_info(instances_ref_valve_list, models_list)
         descart_list = [i for i, x in enumerate(matches_list) if x == None]
 
@@ -219,8 +218,8 @@ class Pointcloud_Seg:
         for index in sorted(descart_list, reverse=True):
             del instances_ref_valve_list[index]
 
-        instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim, self.rad_p, self.min_p)
-        i = len(pred_inst_valve_list)
+        instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim, self.rad_p, self.min_p_p)
+        i = len(instances_ref_valve_list)
 
         if len(instances_ref_valve_list)>0:
             instances_ref_valve = np.vstack(instances_ref_valve_list)
