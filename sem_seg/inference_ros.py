@@ -60,9 +60,7 @@ class Pointcloud_Seg:
         self.rad_v = 0.04
         self.dim = 2
         self.min_p_v = 30 # 40 80 140
-        self.min_p_p = 60
-        self.ref_rad = 0.1
-        
+        self.min_p_p = 60        
         
         self.model_path = "/home/miguel/Desktop/test_ros_subscriber/4_256_11_c7/model.ckpt"
         self.path_cls = "/home/miguel/Desktop/test_ros_subscriber/4.txt"
