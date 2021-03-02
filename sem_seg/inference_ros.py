@@ -64,7 +64,7 @@ class Pointcloud_Seg:
         self.ref_rad = 0.1
         
         
-        self.model_path = "/home/miguel/Desktop/test_ros_subscriber/4_128_11_c7/model.ckpt"
+        self.model_path = "/home/miguel/Desktop/test_ros_subscriber/4_256_11_c7/model.ckpt"
         self.path_cls = "/home/miguel/Desktop/test_ros_subscriber/4.txt"
         self.classes, self.labels, self.label2color = indoor3d_util.get_info_classes(self.path_cls)
 
