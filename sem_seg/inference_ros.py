@@ -1,6 +1,5 @@
 import os
 import sys
-import pcl
 import time
 import rospy
 import ctypes
