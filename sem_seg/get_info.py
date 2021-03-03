@@ -44,6 +44,32 @@ def get_distance(p1,p2, dim):
         d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2)+((p2[2]-p1[2])**2))
     return d
 
+def get_info_skeleton(instances)
+
+    z = 1
+    return info
+
+
+def get_info_matching(instances, models)
+
+    info_list = list()
+    for inst in instances:
+        match_list = list()
+        for model in models:
+            match = get_match(inst, model)
+            match_list.append(match)
+        
+        match_max = max(match_list)
+        # coger el maximo match de match_lsit
+        # ver si es superior al match_thr
+        # si -> info: tal instances ha hecho match con tal modelo
+        # no -> info: tal instance no ha hecho match con ningun modelo
+
+        
+        
+    z = 1
+    return info_list
+
 
 def get_info(instances, method, models=0):
 
@@ -81,10 +107,21 @@ if __name__ == "__main__":
 
             inst_ref = np.loadtxt(file_name)   # TODO CAMBIAR PARA QUE ACABE SIENDO NUMPY CON X Y Z R G B C I
 
-
             instances_pipe = inst_ref[inst_ref[:,6] == [labels["pipe"]]]       # get data label pipe
             instances_valve = inst_ref[inst_ref[:,6] == [labels["valve"]]]     # get data label pipe
-            models = 0 # MODELS HA DE SER UNA LISTA DE NUMPYS X Y Z R G B DE LOS DIFERENTES TIPOS DE VALVULAS CON QUE SE QUIERA HACER MATCHING
 
-            info_pipe = get_info(inst_ref, method="skeleton")
-            info_valve = get_info(inst_ref, method="matching", models)
+            instances_pipe_list = list()
+            instances_valve_list = list()
+
+            for i in set(instances_pipe[:,7])
+                inst = instances_pipe[instances_pipe[:,7] == idx]
+                instances_pipe_list.append(inst)
+
+            for i in set(instances_valve[:,7])
+                inst = instances_valve[instances_valve[:,7] == idx]
+                instances_valve_list.append(inst)
+
+            models_vales = 0 # MODELS HA DE SER UNA LISTA DE NUMPYS X Y Z R G B DE LOS DIFERENTES TIPOS DE VALVULAS CON QUE SE QUIERA HACER MATCHING
+
+            info_pipe = get_info(instances_pipe_list, method="skeleton")
+            info_valve = get_info(instances_valve_list, method="matching", models_vales)
