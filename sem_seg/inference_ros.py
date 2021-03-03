@@ -202,10 +202,10 @@ class Pointcloud_Seg:
         matches_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO matches_list = get_info(instances_ref_valve_list, models_list)
         descart_list = [i for i, x in enumerate(matches_list) if x == None]
 
-        for i, idx in enumerate(descart_list):
-            descarted_points = np.vstack(instances_ref_valve_list[idx])
-            stolen_idx = list(np.vstack(stolen_list[idx])[:,0].astype(int))
-            stolen_cls = np.vstack(stolen_list[idx])[:,1].astype(int)
+        for i in descart_list:
+            descarted_points = np.vstack(instances_ref_valve_list[i])
+            stolen_idx = list(np.vstack(stolen_list[i])[:,0].astype(int))
+            stolen_cls = np.vstack(stolen_list[i])[:,1].astype(int)
             stolen_cls = stolen_cls.reshape(stolen_cls.shape[0],1)
             if len(stolen_idx)>0:
                 stolen_points = descarted_points[stolen_idx, :-2]
