@@ -28,7 +28,8 @@ class Pointcloud_Seg:
 
         self.name = name
         # Params inference
-        self.period = 1
+        self.fps = 2
+        self.period = 1/self.fps
         self.batch_size = 1
         self.points_sub = 256 # 128 256 512
         self.block_sub = 0.1
