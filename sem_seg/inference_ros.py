@@ -158,12 +158,16 @@ class Pointcloud_Seg:
         xyz_min = np.amin(pc_np, axis=0)[0:3]   # get pointcloud mins
         pc_np[:, 0:3] -= xyz_min                # move pointcloud to origin
         xyz_max = np.amax(pc_np, axis=0)[0:3]   # get pointcloud maxs
+
+        t1 = rospy.Time.now()
+
         data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized_parsed(pc_np,  xyz_max, self.points_sub, block_size=self.block_sub, stride=self.stride_sub, random_sample=False, sample_num=None, sample_aug=1) # subsample PC for evaluation
 
         if data_sub.size == 0:
             print("no data sub")
             return
 
+        t2 = rospy.Time.now()
 
         with tf.Graph().as_default():
             pred_sub = self.evaluate(data_sub, label_sub, xyz_max)  # evaluate PC
@@ -175,20 +179,10 @@ class Pointcloud_Seg:
         pred_sub = np.unique(pred_sub, axis=0) # delete duplicates from room2blocks
         pred_sub[:, 0:3] += xyz_min  # return to initial position
 
+        t3 = rospy.Time.now()
+
         pc_np_base = pred_sub.copy()
-        for i in range(pred_sub.shape[0]):
-            color = self.label2color[pred_sub[i,6]]
-            pred_sub[i,3] = color[0]
-            pred_sub[i,4] = color[1]
-            pred_sub[i,5] = color[2]
-
-        pc_base = self.array2pc(header, pc_np_base)
-        pc_seg = self.array2pc(header, pred_sub)
-
-        # Publish
-        self.pub_pc_base.publish(pc_base)
-        self.pub_pc_seg.publish(pc_seg)
-
+        pc_np_base = np.delete(pc_np_base,6,1) # delete class prediction
 
         if self.points_sub != 128:                  # if subsampling
             down = 128/self.points_sub    
@@ -201,12 +195,12 @@ class Pointcloud_Seg:
         pred_sub_valve = pred_sub[pred_sub[:,6] == [self.labels["valve"]]]     # get data label pipe
 
         instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
-        # instances_ref_proj_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_np_base)
-        matches_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO matches_list = get_info(instances_ref_valve_list, models_list)
+        instances_ref_proj_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_np_base)
+        matches_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO matches_list = get_info(instances_ref_proj_valve_list, models_list)
         descart_list = [i for i, x in enumerate(matches_list) if x == None]
 
         for i in descart_list:
-            descarted_points = np.vstack(instances_ref_valve_list[i])
+            descarted_points = np.vstack(instances_ref_proj_valve_list[i])
             stolen_idx = list(np.vstack(stolen_list[i])[:,0].astype(int))
             stolen_cls = np.vstack(stolen_list[i])[:,1].astype(int)
             stolen_cls = stolen_cls.reshape(stolen_cls.shape[0],1)
@@ -216,23 +210,23 @@ class Pointcloud_Seg:
                 pred_sub_pipe_ref = np.concatenate((pred_sub_pipe_ref,stolen_points),axis=0)
 
         for index in sorted(descart_list, reverse=True):
-            del instances_ref_valve_list[index]
+            del instances_ref_proj_valve_list[index]
 
         instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim, self.rad_p, self.min_p_p)
-        i = len(instances_ref_valve_list)
+        i = len(instances_ref_proj_valve_list)
 
-        if len(instances_ref_valve_list)>0:
-            instances_ref_valve = np.vstack(instances_ref_valve_list)
+        if len(instances_ref_proj_valve_list)>0:
+            instances_ref_proj_valve = np.vstack(instances_ref_proj_valve_list)
         if len(instances_ref_pipe_list)>0:
             instances_ref_pipe = np.vstack(instances_ref_pipe_list)
             instances_ref_pipe[:,7] = instances_ref_pipe[:,7]+i
 
-        if len(instances_ref_valve_list)>0 and len(instances_ref_pipe_list)>0:
-            instances_ref = np.concatenate((instances_ref_valve, instances_ref_pipe), axis=0)
-        elif len(instances_ref_valve_list)==0 and len(instances_ref_pipe_list)>0:
+        if len(instances_ref_proj_valve_list)>0 and len(instances_ref_pipe_list)>0:
+            instances_ref = np.concatenate((instances_ref_proj_valve, instances_ref_pipe), axis=0)
+        elif len(instances_ref_proj_valve_list)==0 and len(instances_ref_pipe_list)>0:
             instances_ref = instances_ref_pipe
-        elif len(instances_ref_valve_list)>0 and len(instances_ref_pipe_list)==0:
-            instances_ref = instances_ref_valve
+        elif len(instances_ref_proj_valve_list)>0 and len(instances_ref_pipe_list)==0:
+            instances_ref = instances_ref_proj_valve
         else:
             instances_ref = None
 
@@ -240,18 +234,45 @@ class Pointcloud_Seg:
             print("no isntances found")
             return
 
+        t4 = rospy.Time.now()
+
+        # Publish
+        for i in range(pred_sub.shape[0]):
+            color = self.label2color[pred_sub[i,6]]
+            pred_sub[i,3] = color[0]
+            pred_sub[i,4] = color[1]
+            pred_sub[i,5] = color[2]
+
         for i in range(instances_ref.shape[0]):
             color = self.col_inst[instances_ref[i,7]]
             instances_ref[i,3] = color[0]
             instances_ref[i,4] = color[1]
             instances_ref[i,5] = color[2]
-        
-        
+
+        pc_base = self.array2pc(header, pc_np_base)
+        pc_seg = self.array2pc(header, pred_sub)
         pc_inst = self.array2pc(header, instances_ref)
+        self.pub_pc_base.publish(pc_base)
+        self.pub_pc_seg.publish(pc_seg)
         self.pub_pc_inst.publish(pc_inst)
-        
-        time = rospy.Time.now()-t0
-        rospy.loginfo('[%s]: Pc processing took %s seconds', self.name, time.secs + time.nsecs*1e-9)
+
+        t5 = rospy.Time.now()
+
+        time_read = t1-t0
+        time_blocks = t2-t1
+        time_inferference = t3-t2
+        time_instaces = t4-t3
+        time_publish = t5-t4
+        time_total = t5-t0
+
+
+        rospy.loginfo('[%s]: Pc processing took %.2f seconds. Split into:', self.name, time_total.secs + time_total.nsecs*1e-9)
+        rospy.loginfo('[%s]: Reading --- %.2f seconds (%i%%)', self.name, time_read.secs + time_read.nsecs*1e-9, (time_read/time_total)*100)
+        rospy.loginfo('[%s]: Blocks ---- %.2f seconds (%i%%)', self.name, time_blocks.secs + time_blocks.nsecs*1e-9, (time_blocks/time_total)*100)
+        rospy.loginfo('[%s]: Inference - %.2f seconds (%i%%)', self.name, time_inferference.secs + time_inferference.nsecs*1e-9, (time_inferference/time_total)*100)
+        rospy.loginfo('[%s]: Instances - %.2f seconds (%i%%)', self.name, time_instaces.secs + time_instaces.nsecs*1e-9, (time_instaces/time_total)*100)
+        rospy.loginfo('[%s]: Publish --- %.2f seconds (%i%%)', self.name, time_publish.secs + time_publish.nsecs*1e-9, (time_publish/time_total)*100)
+
 
 
     
