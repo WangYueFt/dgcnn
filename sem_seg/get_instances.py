@@ -63,7 +63,7 @@ def grow(data, points, min_dist, dim):
     new_idx = list()
     for n, p in enumerate(points):
 
-        progress(n, len(points), status='growing')
+        #progress(n, len(points), status='growing')
 
         p1 = p[0:3]
         cls1 = p[6]
@@ -189,8 +189,6 @@ def get_instances(data_label, dim, rad, min_points, ref=False, ref_data=0, ref_r
             inst = np.insert(inst, 7, n_inst, axis=1)
             instances.append(inst)
             n_inst = n_inst + 1
-
-    sys.stdout.write('\n')
 
     if ref:  # if ref -> refine isntance
         start = time.time()
