@@ -8,6 +8,7 @@ import numpy as np
 from model import *
 import indoor3d_util
 import get_instances
+import project_inst
 
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
@@ -190,7 +191,6 @@ class Pointcloud_Seg:
 
 
         if self.points_sub != 128:                  # if subsampling
-
             down = 128/self.points_sub    
             n_idx_pred_sub_down = int(pred_sub.shape[0] * down)  
             idx_pred_sub_down = np.random.choice(pred_sub.shape[0], n_idx_pred_sub_down, replace=False)
@@ -199,7 +199,9 @@ class Pointcloud_Seg:
         # get instances ref
         pred_sub_pipe = pred_sub[pred_sub[:,6] == [self.labels["pipe"]]]       # get data label pipe
         pred_sub_valve = pred_sub[pred_sub[:,6] == [self.labels["valve"]]]     # get data label pipe
+
         instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
+        # instances_ref_proj_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_np_base)
         matches_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO matches_list = get_info(instances_ref_valve_list, models_list)
         descart_list = [i for i, x in enumerate(matches_list) if x == None]
 

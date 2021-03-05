@@ -69,11 +69,11 @@ def read_ply(filename, type):
     return pc_array
 
 
-def project_inst(low, high):
+def project_inst(low_list, high):
 
     high_list = list()
 
-    for i in set(low[..., 7]):  # for each isntance low
+    for inst_low in low_list:  # for each isntance low
 
         inst_low = low[np.where(low[..., 7] == float(i))] # get inst
 
@@ -111,13 +111,10 @@ def project_inst(low, high):
                 inst_high = np.delete(inst_high,6,1)        # delete from inst high the original idx column
             high_list.append(inst_high)                     # append inst high
 
-    if len(high_list)>0:
-        projections = np.vstack(high_list)  # deleting this line, the ouput becomes a list of numpys
-    else:
+    if len(high_list)<0:
         print("NO PROJECTIONS FOUND")
-        projections = None
 
-    return projections
+    return high_list
 
 
 if __name__ == "__main__":
@@ -141,8 +138,16 @@ if __name__ == "__main__":
         low = read_ply(path_low, "low")
         high = read_ply(path_high, "high")
 
-        projections = project_inst(low, high)
+        low_list = list()
 
-        if projections is not None:
+        for i in set(low[..., 7]):  # for each isntance low
+            inst_low = low[np.where(low[..., 7] == float(i))] # get inst
+            low_list.append(inst_low)
+
+
+        projections_list = project_inst(low_list, high)
+
+        if len(projections_list)>0:
+            projections = np.vstack(projections_list) 
             file_path_out = os.path.join(path_in, name + "_projections.ply")
             write_ply(projections, file_path_out)

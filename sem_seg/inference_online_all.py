@@ -318,13 +318,18 @@ if __name__=='__main__':
                                 time_sub_proj = end - start
 
                                 start = time.time()
-                                projections = project_inst.project_inst(instances_ref, data_proj)
+                                low_list = list()
+                                for i in set(instances_ref[..., 7]):  # for each isntance low
+                                    inst_low = instances_ref[np.where(instances_ref[..., 7] == float(i))] # get inst
+                                    low_list.append(inst_low)
+                                projections_list = project_inst.project_inst(low_list, data_proj)
                                 end = time.time()
                                 time_proj = end - start
                             else:
-                                projections = instances_ref
+                                projections_list = low_list
                                 
-                            if projections is not None:
+                            if len(projections_list)>0:
+                                projections = np.vstack(projections_list) 
                                 fout_proj = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_projections.obj'), 'w')
                                 fout_proj_col = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_projections_col.obj'), 'w')
                                 for i in range(projections.shape[0]):
