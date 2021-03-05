@@ -75,7 +75,6 @@ def project_inst(low_list, high):
 
     for inst_low in low_list:  # for each isntance low
 
-        inst_low = low[np.where(low[..., 7] == float(i))] # get inst
 
         hull = ConvexHull(np.array(inst_low[:, 0:2]))   # get its convex hull  TODO que pasa con las tuberias en "L", hace falta reproyectar tuberias?? ....y valvulas?
 
