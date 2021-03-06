@@ -27,7 +27,21 @@ OUTPUT
 '''
 
 
+def get_info_classes(cls_path):
 
+    classes = []
+    colors = []
+
+    for line in open(cls_path):
+        data = line.split()
+        classes.append(data[0])
+        colors.append([int(data[1]), int(data[2]), int(data[3])])
+
+    labels = {cls: i for i, cls in enumerate(classes)}
+
+    label2color = {classes.index(cls): colors[classes.index(cls)] for cls in classes}
+
+    return classes, labels, label2color
 
 def write_ply(data, path_out):
 
@@ -118,11 +132,16 @@ def project_inst(low_list, high):
 
 if __name__ == "__main__":
 
+    print("oli")
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_in', help='path to the run folder.')
+    parser.add_argument('--path_cls', help='path to classes txt.')
     parsed_args = parser.parse_args(sys.argv[1:])
     path_in = parsed_args.path_in
+    path_cls = parsed_args.path_cls
+    classes, labels, label2color = get_info_classes(path_cls)
+
 
     files = natsorted(os.listdir(path_in))
     cases = [s for s in files if s.endswith(".ply")]
@@ -132,21 +151,45 @@ if __name__ == "__main__":
 
         print("evaluating case: " + name)
         path_low = os.path.join(path_in, name + "_pred_inst_ref.ply")
-        path_high = os.path.join(path_in, name + "_high.ply")
+        path_high = os.path.join(path_in, name + "_base.ply")
 
         low = read_ply(path_low, "low")
         high = read_ply(path_high, "high")
 
-        low_list = list()
+        low = np.unique(low, axis=0)
+        high = np.unique(high, axis=0)
 
-        for i in set(low[..., 7]):  # for each isntance low
-            inst_low = low[np.where(low[..., 7] == float(i))] # get inst
-            low_list.append(inst_low)
+        low_pipe = low[low[:,6] == [labels["pipe"]]]       # get data label pipe
+        low_valve = low[low[:,6] == [labels["valve"]]]     # get data label pipe
+
+        inst_low_valve_list = list()
+
+        for i in set(low_valve[..., 7]):  # for each isntance low
+            inst_low_valve = low_valve[np.where(low_valve[..., 7] == float(i))] # get inst
+            inst_low_valve_list.append(inst_low_valve)
 
 
-        projections_list = project_inst(low_list, high)
+        projections_valve_list = project_inst(inst_low_valve_list, high)
 
-        if len(projections_list)>0:
-            projections = np.vstack(projections_list) 
+
+        for i in range(low_pipe.shape[0]):
+            point_low = low_pipe[i]
+            idx_high = np.where((high[:,0:3] == point_low[0:3]).all(axis=1))
+            low_pipe[i,3:6] = high[idx_high, 3:6]
+
+    
+        if len(projections_valve_list)>0 and low_pipe.shape[0]>0:
+            projections_valve = np.vstack(projections_valve_list) 
+            projections = np.concatenate((projections_valve, low_pipe), axis=0)
             file_path_out = os.path.join(path_in, name + "_projections.ply")
             write_ply(projections, file_path_out)
+        elif len(projections_valve_list)==0 and low_pipe.shape[0]>0:
+            projections = low_pipe
+            file_path_out = os.path.join(path_in, name + "_projections.ply")
+            write_ply(projections, file_path_out)
+        elif len(projections_valve_list)>0 and low_pipe.shape[0]==0:
+            projections = np.vstack(projections_valve_list) 
+            file_path_out = os.path.join(path_in, name + "_projections.ply")
+            write_ply(projections, file_path_out)
+        else:
+            print("no projections found")
