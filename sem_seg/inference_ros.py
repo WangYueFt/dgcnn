@@ -196,8 +196,8 @@ class Pointcloud_Seg:
 
         instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
         instances_ref_proj_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_np_base)
-        matches_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO matches_list = get_info(instances_ref_proj_valve_list, models_list)
-        descart_list = [i for i, x in enumerate(matches_list) if x == None]
+        info_valves = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO info_valves = get_info(instances_ref_proj_valve_list, method="matching", models_list)
+        descart_list = [i for i, x in enumerate(info_valves) if x == None]
 
         for i in descart_list:
             descarted_points = np.vstack(instances_ref_proj_valve_list[i])
@@ -213,6 +213,13 @@ class Pointcloud_Seg:
             del instances_ref_proj_valve_list[index]
 
         instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim, self.rad_p, self.min_p_p)
+        # TODO info_pipes = get_info(instances_ref_pipe_list, method="skeleton")
+        # TODO merge info_valves and info_pipes into info
+
+        t4 = rospy.Time.now()
+
+        # TODO publish info
+
         i = len(instances_ref_proj_valve_list)
 
         if len(instances_ref_proj_valve_list)>0:
@@ -233,8 +240,6 @@ class Pointcloud_Seg:
         if instances_ref is None: # if instances were not found
             print("no isntances found")
             return
-
-        t4 = rospy.Time.now()
 
         # Publish
         for i in range(pred_sub.shape[0]):
