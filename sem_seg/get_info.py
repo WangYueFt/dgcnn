@@ -1,11 +1,13 @@
 import os
 import re
-import numpy as np
+import sys
+import time
 import math
 import argparse
-import sys
+import numpy as np
 from natsort import natsorted
-import time
+from plyfile import PlyData, PlyElement
+
 '''
 script to evaluate a model
 
@@ -36,6 +38,13 @@ def get_info_classes(cls_path):
 
     return classes, labels, label2color
 
+def read_ply(filename):
+    """ read XYZ point cloud from filename PLY file """
+    plydata = PlyData.read(filename)
+    pc = plydata['vertex'].data
+    pc_array = np.array([[x, y, z, r, g, b, c, i] for x,y,z,r,g,b,c,i in pc])
+    return pc_array
+
 
 def get_distance(p1,p2, dim):
     if dim == 2:
@@ -44,13 +53,13 @@ def get_distance(p1,p2, dim):
         d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2)+((p2[2]-p1[2])**2))
     return d
 
-def get_info_skeleton(instances)
+def get_info_skeleton(instances):
 
     z = 1
     return info
 
 
-def get_info_matching(instances, models)
+def get_info_matching(instances, models):
 
     info_list = list()
     for inst in instances:
@@ -86,39 +95,35 @@ def get_info(instances, method, models=0):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path_run', help='path to the run folder.')
+    parser.add_argument('--path_in', help='path in data.')
     parser.add_argument('--path_cls', help='path to the class file.')
-    parser.add_argument('--test_name', help='name of the test')
     parsed_args = parser.parse_args(sys.argv[1:])
 
-    path_run = parsed_args.path_run
+    path_in = parsed_args.path_in
     path_cls = parsed_args.path_cls  # get class txt path
-    test_name = parsed_args.test_name
-
-    path_infer = os.path.join(path_run, 'dump_' + test_name)
     classes, labels, label2color = get_info_classes(path_cls)
 
 
-    for file_name in natsorted(os.listdir(path_infer)):
+    for file_name in natsorted(os.listdir(path_in)):
 
-        if "_pred_inst_ref" in file:
+        if "projections" in file_name:
 
             print("evaluating case: " + file_name)
+            path_projections = os.path.join(path_in, file_name)
+            projections = read_ply(path_projections)
 
-            inst_ref = np.loadtxt(file_name)   # TODO CAMBIAR PARA QUE ACABE SIENDO NUMPY CON X Y Z R G B C I
-
-            instances_pipe = inst_ref[inst_ref[:,6] == [labels["pipe"]]]       # get data label pipe
-            instances_valve = inst_ref[inst_ref[:,6] == [labels["valve"]]]     # get data label pipe
+            instances_pipe = projections[projections[:,6] == [labels["pipe"]]]       # get data label pipe
+            instances_valve = projections[projections[:,6] == [labels["valve"]]]     # get data label pipe
 
             instances_pipe_list = list()
             instances_valve_list = list()
 
-            for i in set(instances_pipe[:,7])
-                inst = instances_pipe[instances_pipe[:,7] == idx]
+            for i in set(instances_pipe[:,7]):
+                inst = instances_pipe[instances_pipe[:,7] == i]
                 instances_pipe_list.append(inst)
 
-            for i in set(instances_valve[:,7])
-                inst = instances_valve[instances_valve[:,7] == idx]
+            for i in set(instances_valve[:,7]):
+                inst = instances_valve[instances_valve[:,7] == i]
                 instances_valve_list.append(inst)
 
             models_vales = 0 # MODELS HA DE SER UNA LISTA DE NUMPYS X Y Z R G B DE LOS DIFERENTES TIPOS DE VALVULAS CON QUE SE QUIERA HACER MATCHING

@@ -1,0 +1,47 @@
+
+
+
+VALVE
+
+tempalte alignment :
+
+https://pcl.readthedocs.io/projects/tutorials/en/latest/template_alignment.html
+https://github.com/strawlab/python-pcl/blob/master/examples/official/Registration/alignment_prerejective.py
+
+
+    ICP
+    https://github.com/dakshaau/ICP
+    https://github.com/agnivsen/icp
+    http://www.open3d.org/docs/0.7.0/tutorial/Basic/icp_registration.html
+
+
+
+* probar los que estan en python
+* ver como saca transformacion
+* si tienen pcd ejemplos importar para ver formato en numpy
+* si tienen pcd ejemplos importar en meshalb para ver relacion tamaños y ver si ajusto tamaño valvula o parametros
+* probar con valvulas, tener modelo en 0,0,0
+* buscar otras implementaciones
+
+
+
+PIPE
+* buscar esqueleto en 3d points
+* buscar esqueleto en 2d ponts
+* convertir points 2d a imagen 2d
+    - coger x y max
+    - ver cuandos x e y dsitintos tienes
+    - crear imagen de esa resolucion( darle la oportunidad de caer cada 1 en 1 diferente, suponems espaciamentto ams o menos regular)
+    - proyectar cada punto en su pixel
+    - crear copia antes de ir a blob = 1 para poder calcular despues puntos ams cercanos entre los del esqueleto y las originales proyectados y tener relacion a 3d points
+* conseguir 1 solo blob 
+    - convex hull ajustandose
+    - closings hasta que blob = 1
+* esqueleto
+* link esqueleto
+* relacionar con points 3d
+* get info distancias, vectores, 
+* descartes
+* posiciones pipes, orientacion, inicio, fin, codos,...
+
+
