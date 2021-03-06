@@ -177,7 +177,7 @@ class Pointcloud_Seg:
             return
 
         pred_sub = np.unique(pred_sub, axis=0) # delete duplicates from room2blocks
-        pred_sub[:, 0:3] += xyz_min  # return to initial position
+
 
         t3 = rospy.Time.now()
 
@@ -215,6 +215,7 @@ class Pointcloud_Seg:
         instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim, self.rad_p, self.min_p_p)
         # TODO info_pipes = get_info(instances_ref_pipe_list, method="skeleton")
         # TODO merge info_valves and info_pipes into info
+        # TODO SUMAR X Y Z MINIMO A TODAS LAS POSICIONES X Y Z DE  INFO PIPES Y VALVES
 
         t4 = rospy.Time.now()
 
@@ -253,6 +254,10 @@ class Pointcloud_Seg:
             instances_ref[i,3] = color[0]
             instances_ref[i,4] = color[1]
             instances_ref[i,5] = color[2]
+
+        pc_np_base[:, 0:3] += xyz_min  # return to initial position
+        pred_sub[:, 0:3] += xyz_min  # return to initial position
+        instances_ref[:, 0:3] += xyz_min  # return to initial position
 
         pc_base = self.array2pc(header, pc_np_base)
         pc_seg = self.array2pc(header, pred_sub)
