@@ -63,6 +63,10 @@ def get_info_matching(instances, models):
 
     info_list = list()
     for inst in instances:
+        
+        xyz_min = np.amin(inst, axis=0)[0:3]   # get instance mins
+        inst[:, 0:3] -= xyz_min                # move instance to origin
+
         match_list = list()
         for model in models:
             match = get_match(inst, model)
@@ -113,7 +117,7 @@ if __name__ == "__main__":
             projections = read_ply(path_projections)
 
             instances_pipe = projections[projections[:,6] == [labels["pipe"]]]       # get data label pipe
-            instances_valve = projections[projections[:,6] == [labels["valve"]]]     # get data label pipe
+            instances_valve = projections[projections[:,6] == [labels["valve"]]]     # get data label valve
 
             instances_pipe_list = list()
             instances_valve_list = list()
