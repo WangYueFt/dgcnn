@@ -154,9 +154,17 @@ class Pointcloud_Seg:
             return
 
         pc_np[:, 2] *= -1  # flip Z axis
+        pc_proj = pc_np.copy()
+
+        # reduce pointcloud to desired number of points
+        if self.desired_points != 0:
+            if pc_np.shape[0] > self.desired_points:
+                idx_sub = np.random.choice(pc_np.shape[0], self.desired_points, replace=False)
+                pc_np = pc_np[idx_sub, 0:6]
 
         xyz_min = np.amin(pc_np, axis=0)[0:3]   # get pointcloud mins
         pc_np[:, 0:3] -= xyz_min                # move pointcloud to origin
+        pc_proj[:, 0:3] -= xyz_min 
         xyz_max = np.amax(pc_np, axis=0)[0:3]   # get pointcloud maxs
 
         t1 = rospy.Time.now()
@@ -195,7 +203,7 @@ class Pointcloud_Seg:
         pred_sub_valve = pred_sub[pred_sub[:,6] == [self.labels["valve"]]]     # get data label pipe
 
         instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
-        instances_ref_proj_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_np_base)
+        instances_ref_proj_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_proj)
         info_valves = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO info_valves = get_info(instances_ref_proj_valve_list, method="matching", models_list)
         descart_list = [i for i, x in enumerate(info_valves) if x == None]
 
@@ -291,12 +299,6 @@ class Pointcloud_Seg:
         pc_np = np.array(list(gen))
 
         if pc_np.size > 0:
-
-            # reduce pointcloud to desired number of points
-            if self.desired_points != 0:
-                if pc_np.shape[0] > self.desired_points:
-                    idx_sub = np.random.choice(pc_np.shape[0], self.desired_points, replace=False)
-                    pc_np = pc_np[idx_sub, 0:4]
 
             rgb_list = list()
 
