@@ -203,9 +203,11 @@ class Pointcloud_Seg:
         pred_sub_valve = pred_sub[pred_sub[:,6] == [self.labels["valve"]]]     # get data label pipe
 
         instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
+        # TODO CALCULATE CENTER OF EACH INSTANCE AND MOVE IT TO ORIGEN
         instances_ref_proj_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_proj)
-        info_valves = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO info_valves = get_info(instances_ref_proj_valve_list, method="matching", models_list)
-        descart_list = [i for i, x in enumerate(info_valves) if x == None]
+        info_valves_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO info_valves = get_info(instances_ref_proj_valve_list, method="matching", models_list)
+        # TODO RESTORE POSITION BEFORE MOVING CENTER OF VALVES TO ORIGEN
+        descart_valves_list = [i for i, x in enumerate(info_valves_list) if x == None] # TODO if fitness < thr
 
         for i in descart_list:
             descarted_points = np.vstack(instances_ref_proj_valve_list[i])
@@ -221,7 +223,8 @@ class Pointcloud_Seg:
             del instances_ref_proj_valve_list[index]
 
         instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim, self.rad_p, self.min_p_p)
-        # TODO info_pipes = get_info(instances_ref_pipe_list, method="skeleton")
+        # TODO info_pipes_list = get_info(instances_ref_pipe_list, method="skeleton")
+        # TODO descart_pipes_list = ...  metrics to discart pipes
         # TODO merge info_valves and info_pipes into info
         # TODO SUMAR X Y Z MINIMO A TODAS LAS POSICIONES X Y Z DE  INFO PIPES Y VALVES
 
