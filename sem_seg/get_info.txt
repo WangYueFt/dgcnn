@@ -1,31 +1,46 @@
 
 
 
-VALVE
+-------------------  VALVE  -------------------
 
 tempalte alignment :
 
+OPEN3D
+pip uninstall open3d open3d-python
+pip3 install open3d==0.12
+http://www.open3d.org/docs/release/tutorial/pipelines/index.html
+https://stackoverflow.com/questions/60346126/consistent-normal-calculation-of-a-point-cloud
+    orient_normals_consistent_tangent_plane(self, k)
+    orient_normals_to_align_with_direction(self, orientation_reference=array([0.0, 0.0, 1.0]))
+    orient_normals_towards_camera_location(self, camera_location=array([0.0, 0.0, 0.0]))
+
+OTHER:
 https://pcl.readthedocs.io/projects/tutorials/en/latest/template_alignment.html
 https://github.com/strawlab/python-pcl/blob/master/examples/official/Registration/alignment_prerejective.py
+https://github.com/dakshaau/ICP
+https://github.com/agnivsen/icp
 
 
-    ICP
-    https://github.com/dakshaau/ICP
-    https://github.com/agnivsen/icp
-    http://www.open3d.org/docs/0.7.0/tutorial/Basic/icp_registration.html
+DENTRO
+* centro en 0,0,0 - dentro o fuera?
+* global registration (parametros)
+* (color) registration (parametros)
+* escoger registration PUNTOS o PLANO
+* conseguir CAD valvulas con normales (o calcualralas y que queden bien)
+* tiempos matching
+
+FUERA
+* centro en 0,0,0 - dentro o fuera?
+* mirar % time_read para.. ----------------------------------------------------------DONE - AUMENTA UN 8% EL TIMEPO
+    - intentar filtrar menos en pc_voxel para subscribirse a mas puntos
+    - subsample en python al mismo numero de puntos (10k para 256)
+    - pointcloud proj coger la que justo se saca del subscriber, antes de downsamplear, asi sera mas densa
+    - esto afectara a tiempo de matching?
+* convertir numpy en pointcloud open3d
 
 
+-------------------  PIPE  -------------------
 
-* probar los que estan en python
-* ver como saca transformacion
-* si tienen pcd ejemplos importar para ver formato en numpy
-* si tienen pcd ejemplos importar en meshalb para ver relacion tamaños y ver si ajusto tamaño valvula o parametros
-* probar con valvulas, tener modelo en 0,0,0
-* buscar otras implementaciones
-
-
-
-PIPE
 * buscar esqueleto en 3d points
 * buscar esqueleto en 2d ponts
 * convertir points 2d a imagen 2d
