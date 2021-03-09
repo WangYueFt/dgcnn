@@ -63,8 +63,8 @@ class Pointcloud_Seg:
         self.min_p_v = 30 # 40 80 140
         self.min_p_p = 60        
         
-        self.model_path = "/home/miguel/Desktop/test_ros_subscriber/4_256_11_c7/model.ckpt"
-        self.path_cls = "/home/miguel/Desktop/test_ros_subscriber/4.txt"
+        self.model_path = "/home/uib/Desktop/test_ros_inference/4_256_11_c7/model.ckpt"
+        self.path_cls = "/home/uib/Desktop/test_ros_inference/4.txt"
         self.classes, self.labels, self.label2color = indoor3d_util.get_info_classes(self.path_cls)
 
 
@@ -126,10 +126,12 @@ class Pointcloud_Seg:
             'loss': loss}
 
     def run(self,_):
+        rospy.loginfo('[%s]: Entro', self.name)	
         t0 = rospy.Time.now()
 
         # New pc available
         if not self.new_pc:
+            rospy.loginfo('[%s]: Not new', self.name)	
             return
         self.new_pc = False
 
@@ -209,7 +211,7 @@ class Pointcloud_Seg:
         # TODO RESTORE POSITION BEFORE MOVING CENTER OF VALVES TO ORIGEN
         descart_valves_list = [i for i, x in enumerate(info_valves_list) if x == None] # TODO if fitness < thr
 
-        for i in descart_list:
+        for i in descart_valves_list:
             descarted_points = np.vstack(instances_ref_proj_valve_list[i])
             stolen_idx = list(np.vstack(stolen_list[i])[:,0].astype(int))
             stolen_cls = np.vstack(stolen_list[i])[:,1].astype(int)
@@ -219,7 +221,7 @@ class Pointcloud_Seg:
                 stolen_points = np.concatenate((stolen_points,stolen_cls),axis=1)
                 pred_sub_pipe_ref = np.concatenate((pred_sub_pipe_ref,stolen_points),axis=0)
 
-        for index in sorted(descart_list, reverse=True):
+        for index in sorted(descart_valves_list, reverse=True):
             del instances_ref_proj_valve_list[index]
 
         instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim, self.rad_p, self.min_p_p)
