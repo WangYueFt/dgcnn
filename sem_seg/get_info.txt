@@ -26,7 +26,7 @@ DENTRO
 D global registration (parametros)
 D (color) registration (parametros)
 D escoger registration PUNTOS o PLANO
-* conseguir CAD valvulas con normales (o calcualralas y que queden bien)
+D conseguir CAD valvulas con normales (o calcualralas y que queden bien)
 D tiempos matching
 
 FUERA
@@ -37,6 +37,10 @@ D mirar % time_read para.. -----------------------------------------------------
     - pointcloud proj coger la que justo se saca del subscriber, antes de downsamplear, asi sera mas densa
     - esto afectara a tiempo de matching?
 D convertir numpy en pointcloud open3d
+
+* bateria de tests difrentes valvulas, diferentes densidades, target CAD / nuestras
+* integrar en pipeline
+* gestionar %
 
 -------------------  PIPE  -------------------
 
