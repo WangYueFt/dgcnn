@@ -23,21 +23,20 @@ https://github.com/agnivsen/icp
 
 DENTRO
 * centro en 0,0,0 - dentro o fuera?
-* global registration (parametros)
-* (color) registration (parametros)
-* escoger registration PUNTOS o PLANO
+D global registration (parametros)
+D (color) registration (parametros)
+D escoger registration PUNTOS o PLANO
 * conseguir CAD valvulas con normales (o calcualralas y que queden bien)
-* tiempos matching
+D tiempos matching
 
 FUERA
 * centro en 0,0,0 - dentro o fuera?
-* mirar % time_read para.. ----------------------------------------------------------DONE - AUMENTA UN 8% EL TIMEPO
+D mirar % time_read para.. ----------------------------------------------------------DONE - AUMENTA UN 8% EL TIMEPO
     - intentar filtrar menos en pc_voxel para subscribirse a mas puntos
     - subsample en python al mismo numero de puntos (10k para 256)
     - pointcloud proj coger la que justo se saca del subscriber, antes de downsamplear, asi sera mas densa
     - esto afectara a tiempo de matching?
-* convertir numpy en pointcloud open3d
-
+D convertir numpy en pointcloud open3d
 
 -------------------  PIPE  -------------------
 
