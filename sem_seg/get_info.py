@@ -53,6 +53,34 @@ def get_distance(p1,p2, dim):
         d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2)+((p2[2]-p1[2])**2))
     return d
 
+
+def get_match(source, target):
+
+    source_copy = copy.deepcopy(source)
+
+    source_copy.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
+    source_copy.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
+
+    voxel_size = 0.05
+    distance_threshold = 0.2 # voxel_size * 1.5
+    radius_feature = 0.05 # voxel_size * 5
+
+    _, source_fpfh = preprocess_point_cloud(source_copy, radius_feature)
+    result_ransac = execute_global_registration(source_copy, target, source_fpfh, target_fpfh, distance_threshold)
+    source_copy.transform(result_ransac.transformation)
+
+    threshold = 0.02
+    trans_init = np.asarray([[1, 0, 0, 0],
+                             [0, 1, 0, 0],
+                             [0, 0, 1, 0], 
+                             [0, 0, 0, 1]])
+
+    reg_p2l = o3d.pipelines.registration.registration_icp(source_copy, target, threshold, trans_init, o3d.pipelines.registration.TransformationEstimationPointToPlane())
+
+    transformation = np.matmul(result_ransac.transformation,reg_p2l.transformation)
+
+    return reg_p2l.fitness, transformation
+
 def get_info_skeleton(instances):
 
     z = 1
@@ -62,14 +90,12 @@ def get_info_skeleton(instances):
 def get_info_matching(instances, models):
 
     info_list = list()
-    for inst in instances:
-        
-        xyz_min = np.amin(inst, axis=0)[0:3]   # get instance mins
-        inst[:, 0:3] -= xyz_min                # move instance to origin
 
+    for inst in instances:
         match_list = list()
+
         for model in models:
-            match = get_match(inst, model)
+            match, transform = get_match(inst, model)
             match_list.append(match)
         
         match_max = max(match_list)
@@ -128,9 +154,11 @@ if __name__ == "__main__":
 
             for i in set(instances_valve[:,7]):
                 inst = instances_valve[instances_valve[:,7] == i]
+                xyz_central = np.mean(inst, axis=0)[0:3]
+                inst[:, 0:3] -= xyz_central                # move instance to origin
                 instances_valve_list.append(inst)
 
-            models_vales = 0 # MODELS HA DE SER UNA LISTA DE NUMPYS X Y Z R G B DE LOS DIFERENTES TIPOS DE VALVULAS CON QUE SE QUIERA HACER MATCHING
+            models_vales_list = 0 # MODELS HA DE SER UNA LISTA DE NUMPYS X Y Z R G B DE LOS DIFERENTES TIPOS DE VALVULAS CON QUE SE QUIERA HACER MATCHING
 
             info_pipe = get_info(instances_pipe_list, method="skeleton")
-            info_valve = get_info(instances_valve_list, method="matching", models_vales)
+            info_valve = get_info(instances_valve_list, method="matching", models_vales_list)

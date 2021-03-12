@@ -8,6 +8,7 @@ tempalte alignment :
 OPEN3D
 pip uninstall open3d open3d-python
 pip3 install open3d==0.12
+pip install numpy --upgrade  (1.19.5 works)
 http://www.open3d.org/docs/release/tutorial/pipelines/index.html
 https://stackoverflow.com/questions/60346126/consistent-normal-calculation-of-a-point-cloud
     orient_normals_consistent_tangent_plane(self, k)
@@ -22,7 +23,6 @@ https://github.com/agnivsen/icp
 
 
 DENTRO
-* centro en 0,0,0 - dentro o fuera?
 D global registration (parametros)
 D (color) registration (parametros)
 D escoger registration PUNTOS o PLANO
@@ -30,7 +30,7 @@ D conseguir CAD valvulas con normales (o calcualralas y que queden bien)
 D tiempos matching
 
 FUERA
-* centro en 0,0,0 - dentro o fuera?
+D centro en 0,0,0
 D mirar % time_read para.. ----------------------------------------------------------DONE - AUMENTA UN 8% EL TIMEPO
     - intentar filtrar menos en pc_voxel para subscribirse a mas puntos
     - subsample en python al mismo numero de puntos (10k para 256)
@@ -38,9 +38,10 @@ D mirar % time_read para.. -----------------------------------------------------
     - esto afectara a tiempo de matching?
 D convertir numpy en pointcloud open3d
 
+* integrar en get_info.py
 * bateria de tests difrentes valvulas, diferentes densidades, target CAD / nuestras
 * integrar en pipeline
-* gestionar %
+* gestionar % de matching, descartes, hacer amtching 3 veces? dependera de lo que vea en abteria de pruebas
 
 -------------------  PIPE  -------------------
 
