@@ -67,6 +67,8 @@ class Pointcloud_Seg:
         self.path_cls = "/home/miguel/Desktop/test_ros_subscriber/4.txt"
         self.classes, self.labels, self.label2color = indoor3d_util.get_info_classes(self.path_cls)
 
+        # TODO importar modelos valvulas, convertirlos a o3d pointclouds, calcular fpfh y meterlos en una lista
+
 
         self.init = False
         self.new_pc = False

@@ -38,7 +38,9 @@ D mirar % time_read para.. -----------------------------------------------------
     - esto afectara a tiempo de matching?
 D convertir numpy en pointcloud open3d
 
-* integrar en get_info.py
+* test time with pre_python_downsample density valvules, (new projections vamos..)
+* integrar en get_info.py (pending to test)
+* generar modelos de valvulas en orgien orientados (CAD / nuestras) (dependiendo de test timepos, decidir con que densidad)
 * bateria de tests difrentes valvulas, diferentes densidades, target CAD / nuestras
 * integrar en pipeline
 * gestionar % de matching, descartes, hacer amtching 3 veces? dependera de lo que vea en abteria de pruebas
