@@ -54,20 +54,21 @@ def get_distance(p1,p2, dim):
     return d
 
 
-def get_match(source, target):
+def match(source, target, voxel_size = 0.05):
 
-    source_copy = copy.deepcopy(source)
+    distance_threshold = voxel_size * 4 # voxel_size * 1.5
+    radius_feature = voxel_size         # voxel_size * 5
 
-    source_copy.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
-    source_copy.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
+    source_o3d = o3d.geometry.PointCloud()
+    source_o3d.points = o3d.utility.Vector3dVector(source[:,0:3])
+    source_o3d.colors = o3d.utility.Vector3dVector(source[:,3:6])
 
-    voxel_size = 0.05
-    distance_threshold = 0.2 # voxel_size * 1.5
-    radius_feature = 0.05 # voxel_size * 5
+    source_o3d.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
+    source_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
 
-    _, source_fpfh = preprocess_point_cloud(source_copy, radius_feature)
-    result_ransac = execute_global_registration(source_copy, target, source_fpfh, target_fpfh, distance_threshold)
-    source_copy.transform(result_ransac.transformation)
+    _, source_fpfh = preprocess_point_cloud(source_o3d, radius_feature)
+    result_ransac = execute_global_registration(source_o3d, target, source_fpfh, target_fpfh, distance_threshold)
+    source_o3d.transform(result_ransac.transformation)
 
     threshold = 0.02
     trans_init = np.asarray([[1, 0, 0, 0],
@@ -75,50 +76,33 @@ def get_match(source, target):
                              [0, 0, 1, 0], 
                              [0, 0, 0, 1]])
 
-    reg_p2l = o3d.pipelines.registration.registration_icp(source_copy, target, threshold, trans_init, o3d.pipelines.registration.TransformationEstimationPointToPlane())
+    reg_p2l = o3d.pipelines.registration.registration_icp(source_o3d, target, threshold, trans_init, o3d.pipelines.registration.TransformationEstimationPointToPlane())
 
     transformation = np.matmul(result_ransac.transformation,reg_p2l.transformation)
 
     return reg_p2l.fitness, transformation
 
 def get_info_skeleton(instances):
-
     z = 1
     return info
 
 
 def get_info_matching(instances, models):
-
     info_list = list()
-
     for inst in instances:
         match_list = list()
-
         for model in models:
-            match, transform = get_match(inst, model)
-            match_list.append(match)
-        
-        match_max = max(match_list)
-        # coger el maximo match de match_lsit
-        # ver si es superior al match_thr
-        # si -> info: tal instances ha hecho match con tal modelo
-        # no -> info: tal instance no ha hecho match con ningun modelo
-
-        
-        
-    z = 1
+            fitness, transform = match(inst, model)
+            match_list = [fitness, transform]
+            info_list.append(match_list)
     return info_list
 
 
 def get_info(instances, method, models=0):
-
     if method == "skeleton":
         info = get_info_skeleton(instances)
     elif method == "matching":
         info = get_info_matching(instances, models)
-
-
-
     return info
         
 
@@ -162,3 +146,9 @@ if __name__ == "__main__":
 
             info_pipe = get_info(instances_pipe_list, method="skeleton")
             info_valve = get_info(instances_valve_list, method="matching", models_vales_list)
+
+            # match_max = max(match_list)
+            # coger el maximo match de match_list
+            # ver si es superior al match_thr
+            # si -> info: tal instances ha hecho match con tal modelo
+            # no -> info: tal instance no ha hecho match con ningun modelo
