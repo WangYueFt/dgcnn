@@ -133,6 +133,8 @@ if __name__=='__main__':
                     data_label_full = np.loadtxt(filepath)  # read from txt (not on xyz origin)
                     os.remove(filepath)
 
+                    data_proj = data_label_full.copy()
+
                     if data_label_full.shape[0]> 2000: # 200000 check pointcloud points, a good PC has ~ 480k points  -> 200K for unfiltered PC, 2k for filtered PC
 
                         # subsample data_label_full to match ros subscription
@@ -142,9 +144,10 @@ if __name__=='__main__':
 
                         xyz_min = np.amin(data_label_full_sub, axis=0)[0:3]  # get pointcloud mins
                         data_label_full_sub[:, 0:3] -= xyz_min               # move pointcloud to origin
-
+                        data_proj[:, 0:3] -= xyz_min                         # move pointcloud to origin
                         xyz_max = np.amax(data_label_full_sub, axis=0)[0:3] # get pointcloud maxs
-                            
+
+                        ''' 
                         # determine projection number of points
                         if block_proj == 0.2: 
                             start = 0.3333 # 0.03333  x10 because reduced data_label_full by /10 into data_label_full_sub
@@ -159,13 +162,13 @@ if __name__=='__main__':
                         n_idx_proj = int(data_label_full_sub.shape[0] * reduction)
                         idx_proj = np.random.choice(data_label_full_sub.shape[0], n_idx_proj, replace=False)
                         data_proj = data_label_full_sub[idx_proj, 0:6]  # subsample projection
-
+                        '''
                         data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized_parsed(data_label_full_sub, xyz_max, points_sub, block_size=block_sub, stride=stride_sub, random_sample=False, sample_num=None, sample_aug=1) # subsample PC for evaluation
 
                         with tf.Graph().as_default():
                             pred_sub = evaluate(data_sub, label_sub, xyz_max, sess, ops)  # evaluate PC
                         pred_sub = np.unique(pred_sub, axis=0)                            # delete duplicates from room2blocks
-                        pred_sub[:, 0:3] += xyz_min                                       # recover PC's original position
+                        #pred_sub[:, 0:3] += xyz_min                                       # recover PC's original position
 
                     
                         fout_sub = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_sub.obj'), 'w')
@@ -237,11 +240,11 @@ if __name__=='__main__':
                         pred_sub_valve = pred_sub[pred_sub[:,6] == [labels["valve"]]]     # get data label pipe
                         instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, dim, rad_v, min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
                         
-                        if points_proj != 0:    # if projection  
-                            instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, data_proj)
-                            # TODO CALCULATE CENTER OF EACH INSTANCE AND MOVE IT TO ORIGEN
-                            info_valves_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO info_valves = get_info(instances_ref_proj_valve_list, method="matching", models_list) #TODO create models_list as list of [o3d, fpfh]
-                            # TODO RESTORE POSITION to BEFORE MOVING CENTER OF VALVES TO ORIGEN
+                        #if points_proj != 0:    # if projection  
+                        instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, data_proj)
+                        # TODO CALCULATE CENTER OF EACH INSTANCE AND MOVE IT TO ORIGEN
+                        info_valves_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO info_valves = get_info(instances_ref_proj_valve_list, method="matching", models_list) #TODO create models_list as list of [o3d, fpfh]
+                        # TODO RESTORE POSITION to BEFORE MOVING CENTER OF VALVES TO ORIGEN
                         descart_valves_list = [i for i, x in enumerate(info_valves_list) if x == None]
 
                         for i, idx in enumerate(descart_valves_list):
