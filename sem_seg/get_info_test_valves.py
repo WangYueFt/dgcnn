@@ -151,7 +151,7 @@ def match2(source, target):
     reg_p2l = o3d.pipelines.registration.evaluate_registration(source_pc, target_pc, threshold, trans)
     #draw_registration_result(source_pc, target_pc, trans)
 
-    return reg_p2l.fitness, trans
+    return reg_p2l.fitness, (360/16)*(best_idx+1)
 
 def get_info_skeleton(instances):
     z = 1
@@ -237,15 +237,17 @@ if __name__ == "__main__":
         projection_fpfh_list.append([projection_o3d, projection_fpfh])
 
         info_projection = get_info(projection_fpfh_list, models_fpfh_list, method="matching")
+        
+        print(info_projection)
 
-        #print(info_projection)
+        max_fitness =  max(info_projection) 
+        max_idx = info_projection.index(max_fitness)
+        if max_fitness[0] < 0.6:
+            max_fitness[0] = 0
+        info.append([max_fitness, max_idx])
 
-        info.append(info_projection)
+        #print(max_fitness)
+        #print(max_idx)
         print(" ")
 
-        #print(info_valve)
-        # TODO match_max = max(match_list)
-        # TODO coger el maximo match de match_list
-        # TODO ver si es superior al match_thr
-        # TODO si -> info: tal instances ha hecho match con tal modelo
-        # TODO no -> info: tal instance no ha hecho match con ningun modelo
+    print(info)
