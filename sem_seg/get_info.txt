@@ -39,8 +39,8 @@ D mirar % time_read para.. -----------------------------------------------------
 D convertir numpy en pointcloud open3d
 
 D generar modelos de valvulas en orgien orientados (CAD / nuestras) 
-* get_Info mockup
-* bateria de tests difrentes valvulas, diferentes densidades, target CAD / nuestras, tiempos
+D get_Info mockup
+D bateria de tests difrentes valvulas, diferentes densidades, target CAD / nuestras, tiempos
 * integrar en get_info.py (pending to test)
 * integrar en pipeline
 * gestionar % de matching, descartes, hacer matching 3 veces? dependera de lo que vea en bateria de pruebas
