@@ -132,15 +132,24 @@ def match2(source, target):
     for i in range(16): # 0-15
         k = i+1
         trans = np.eye(4)
+        start = time.time()
         trans[:3,:3] = source_pc.get_rotation_matrix_from_xyz((0,0, (np.pi/8)*k))
+        mid = time.time()
         reg_p2l = o3d.pipelines.registration.evaluate_registration(source_pc, target_pc, threshold, trans)
+        end = time.time()
         matchings.append(reg_p2l.fitness)
+        #print("Registration check 1/16 took %.5f sec. (%.5f - %.5f)" % (end-start, mid-start, end-mid))
+        #print("- matching: " + str(reg_p2l.fitness))
         #draw_registration_result(source_pc, target_pc, trans)
     
     best_idx = matchings.index(max(matchings))
     best_matching = matchings[best_idx]
 
     print("-- best matching: " + str(best_matching) + " at angle: " + str((360/16)*(best_idx+1)))
+
+    trans[:3,:3] = source_pc.get_rotation_matrix_from_xyz((0,0, (np.pi/8)*(best_idx+1)))
+    reg_p2l = o3d.pipelines.registration.evaluate_registration(source_pc, target_pc, threshold, trans)
+    #draw_registration_result(source_pc, target_pc, trans)
 
     return reg_p2l.fitness, trans
 
@@ -152,10 +161,17 @@ def get_info_skeleton(instances):
 def get_info_matching(instances, models):
     info_list = list()
     for inst in instances:
+        start1 = time.time()
         for model in models:
             #fitness, transform = match1(inst, model)
+            start2 = time.time()
             fitness, transform = match2(inst, model)
+            end2 = time.time()
+            print("Registration check 360 took %.5f sec." % (end2-start2))
             info_list.append([fitness, transform])
+        end1 = time.time()
+        print("Registration check vs all took %.5f sec." % (end1-start1))
+
     return info_list
 
 
