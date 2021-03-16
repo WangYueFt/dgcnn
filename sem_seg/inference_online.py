@@ -11,6 +11,7 @@ import time
 import numpy as np
 import get_instances
 import project_inst
+import get_info
 
 "python inference_online_all.py --path_data a/b/c --path_cls meta/class_or.txt --model_path RUNS/test_indoor --points_sub 128 --points_proj 512 --test_name test_name"
 
@@ -170,16 +171,6 @@ if __name__=='__main__':
                         pred_sub = np.unique(pred_sub, axis=0)                            # delete duplicates from room2blocks
                         #pred_sub[:, 0:3] += xyz_min                                       # recover PC's original position
 
-                    
-                        fout_sub = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_sub.obj'), 'w')
-                        fout_sub_col = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_sub_col.obj'), 'w')
-                        for i in range(pred_sub.shape[0]):
-                            fout_sub.write('v %f %f %f %d %d %d %d\n' % (pred_sub[i,0], pred_sub[i,1], pred_sub[i,2], pred_sub[i,3], pred_sub[i,4], pred_sub[i,5], pred_sub[i,6]))
-                        for i in range(pred_sub.shape[0]):
-                            color = label2color[pred_sub[i,6]]
-                            fout_sub_col.write('v %f %f %f %d %d %d %d\n' % (pred_sub[i,0], pred_sub[i,1], pred_sub[i,2], color[0], color[1], color[2], pred_sub[i,6]))
-
-
                         if down_pred == True:                  # if subsampling of prediciton is wanted
                             down = 128/points_sub                 # down_pred to 128
                             n_idx_pred_sub_down = int(pred_sub.shape[0] * down)  
@@ -212,6 +203,7 @@ if __name__=='__main__':
                         min_p_v = min_p_v
                         min_p_p = min_p_p
 
+                        '''
                         # get instances noref
                         pred_sub_pipe = pred_sub[pred_sub[:,6] == [labels["pipe"]]]       # get data label pipe
                         pred_sub_valve = pred_sub[pred_sub[:,6] == [labels["valve"]]]     # get data label pipe
@@ -234,6 +226,7 @@ if __name__=='__main__':
                             instances_noref = instances_noref_valve
                         else:
                             instances_noref = None
+                        '''
 
                         # get instances ref
                         pred_sub_pipe = pred_sub[pred_sub[:,6] == [labels["pipe"]]]       # get data label pipe
@@ -241,9 +234,11 @@ if __name__=='__main__':
                         instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, dim, rad_v, min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
                         
                         #if points_proj != 0:    # if projection  
-                        instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, data_proj)
+                        #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, data_proj) NO SE PROYECTA, FASTIFIA MATCHING CON PUTNOS DEL SUELO
+                        
                         # TODO CALCULATE CENTER OF EACH INSTANCE AND MOVE IT TO ORIGEN
-                        info_valves_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO info_valves = get_info(instances_ref_proj_valve_list, method="matching", models_list) #TODO create models_list as list of [o3d, fpfh]
+                        info_valves_list = [1, 1, 1, 1, 1, 1, 1, 1, 1]
+                        #info_valves_list2 = get_info.get_info(instances_ref_valve_list, method="matching", models_list) #TODO create models_list as list of [o3d, fpfh]
                         # TODO RESTORE POSITION to BEFORE MOVING CENTER OF VALVES TO ORIGEN
                         descart_valves_list = [i for i, x in enumerate(info_valves_list) if x == None]
 
@@ -278,8 +273,21 @@ if __name__=='__main__':
                         else:
                             instances_ref = None
 
-                        if instances_ref is not None: # if instances were found
 
+                        # PRINTS
+
+                        pred_sub[:, 0:3] += xyz_min                                       # recover PC's original position
+
+                        fout_sub = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_sub.obj'), 'w')
+                        fout_sub_col = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_sub_col.obj'), 'w')
+                        for i in range(pred_sub.shape[0]):
+                            fout_sub.write('v %f %f %f %d %d %d %d\n' % (pred_sub[i,0], pred_sub[i,1], pred_sub[i,2], pred_sub[i,3], pred_sub[i,4], pred_sub[i,5], pred_sub[i,6]))
+                        for i in range(pred_sub.shape[0]):
+                            color = label2color[pred_sub[i,6]]
+                            fout_sub_col.write('v %f %f %f %d %d %d %d\n' % (pred_sub[i,0], pred_sub[i,1], pred_sub[i,2], color[0], color[1], color[2], pred_sub[i,6]))
+
+                        if instances_ref is not None: # if instances were found
+                            instances_ref[:, 0:3] += xyz_min                                       # recover PC's original position
                             fout_inst = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_inst_ref.obj'), 'w')
                             fout_inst_col = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_inst_ref_col.obj'), 'w')
                             for i in range(instances_ref.shape[0]):

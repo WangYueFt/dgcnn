@@ -41,16 +41,16 @@ D convertir numpy en pointcloud open3d
 D generar modelos de valvulas en orgien orientados (CAD / nuestras) 
 D get_Info mockup
 D bateria de tests difrentes valvulas, diferentes densidades, target CAD / nuestras, tiempos
-* integrar en get_info.py (pending to test)
-* integrar en pipeline
-* gestionar % de matching, descartes, hacer matching 3 veces? dependera de lo que vea en bateria de pruebas
+D integrar en get_info.py (pending to test)
+* integrar en pipeline online y ros
+X gestionar % de matching, descartes, hacer matching 3 veces? dependera de lo que vea en bateria de pruebas
 
 -------------------  PIPE  -------------------
 
 * buscar esqueleto en 3d points
 * buscar esqueleto en 2d ponts
 * convertir points 2d a imagen 2d
-    - coger x y max
+    - coger x e y max
     - ver cuandos x e y dsitintos tienes
     - crear imagen de esa resolucion( darle la oportunidad de caer cada 1 en 1 diferente, suponems espaciamentto ams o menos regular)
     - proyectar cada punto en su pixel

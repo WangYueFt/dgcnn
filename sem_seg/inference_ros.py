@@ -207,14 +207,14 @@ class Pointcloud_Seg:
         pred_sub_valve = pred_sub[pred_sub[:,6] == [self.labels["valve"]]]     # get data label pipe
 
         instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
-        instances_ref_proj_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_proj) # pc_np_base
+        #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_proj) # pc_np_base NO SE PROYECTA, FASTIFIA MATCHING CON PUTNOS DEL SUELO
         # TODO CALCULATE CENTER OF EACH INSTANCE AND MOVE IT TO ORIGEN
-        info_valves_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO info_valves = get_info(instances_ref_proj_valve_list, method="matching", models_list) #TODO create models_list as list of [o3d, fpfh]
+        info_valves_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO info_valves = get_info(instances_ref_valve_list, method="matching", models_list) #TODO create models_list as list of [o3d, fpfh]
         # TODO RESTORE POSITION to BEFORE MOVING CENTER OF VALVES TO ORIGEN
         descart_valves_list = [i for i, x in enumerate(info_valves_list) if x == None] # TODO if fitness < thr
 
         for i in descart_valves_list:
-            descarted_points = np.vstack(instances_ref_proj_valve_list[i])
+            descarted_points = np.vstack(instances_ref_valve_list[i])
             stolen_idx = list(np.vstack(stolen_list[i])[:,0].astype(int))
             stolen_cls = np.vstack(stolen_list[i])[:,1].astype(int)
             stolen_cls = stolen_cls.reshape(stolen_cls.shape[0],1)
@@ -224,7 +224,7 @@ class Pointcloud_Seg:
                 pred_sub_pipe_ref = np.concatenate((pred_sub_pipe_ref,stolen_points),axis=0)
 
         for index in sorted(descart_valves_list, reverse=True):
-            del instances_ref_proj_valve_list[index]
+            del instances_ref_valve_list[index]
 
         instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim, self.rad_p, self.min_p_p)
         # TODO info_pipes_list = get_info(instances_ref_pipe_list, method="skeleton")
@@ -236,19 +236,19 @@ class Pointcloud_Seg:
 
         # TODO publish info
 
-        i = len(instances_ref_proj_valve_list)
+        i = len(instances_ref_valve_list)
 
-        if len(instances_ref_proj_valve_list)>0:
-            instances_ref_proj_valve = np.vstack(instances_ref_proj_valve_list)
+        if len(instances_ref_valve_list)>0:
+            instances_ref_proj_valve = np.vstack(instances_ref_valve_list)
         if len(instances_ref_pipe_list)>0:
             instances_ref_pipe = np.vstack(instances_ref_pipe_list)
             instances_ref_pipe[:,7] = instances_ref_pipe[:,7]+i
 
-        if len(instances_ref_proj_valve_list)>0 and len(instances_ref_pipe_list)>0:
+        if len(instances_ref_valve_list)>0 and len(instances_ref_pipe_list)>0:
             instances_ref = np.concatenate((instances_ref_proj_valve, instances_ref_pipe), axis=0)
-        elif len(instances_ref_proj_valve_list)==0 and len(instances_ref_pipe_list)>0:
+        elif len(instances_ref_valve_list)==0 and len(instances_ref_pipe_list)>0:
             instances_ref = instances_ref_pipe
-        elif len(instances_ref_proj_valve_list)>0 and len(instances_ref_pipe_list)==0:
+        elif len(instances_ref_valve_list)>0 and len(instances_ref_pipe_list)==0:
             instances_ref = instances_ref_proj_valve
         else:
             instances_ref = None

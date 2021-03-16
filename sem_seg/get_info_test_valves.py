@@ -114,7 +114,7 @@ def match1(source, target):
 
     print("--matching: " + str(reg_p2l.fitness))
 
-    draw_registration_result(source_pc, target_pc, reg_p2l.transformation)
+    #draw_registration_result(source_pc, target_pc, reg_p2l.transformation)
 
     return reg_p2l.fitness, transformation
 
@@ -122,9 +122,7 @@ def match1(source, target):
 def match2(source, target):
 
     target_pc = target[0]
-    target_fpfh = target[1]
     source_pc = source[0]
-    source_fpfh = source[1]
     
     threshold = 0.02
     matchings = list()
@@ -161,6 +159,7 @@ def get_info_skeleton(instances):
 def get_info_matching(instances, models):
     info_list = list()
     for inst in instances:
+        info_inst = list()
         start1 = time.time()
         for model in models:
             #fitness, transform = match1(inst, model)
@@ -168,7 +167,8 @@ def get_info_matching(instances, models):
             fitness, transform = match2(inst, model)
             end2 = time.time()
             print("Registration check 360 took %.5f sec." % (end2-start2))
-            info_list.append([fitness, transform])
+            info_inst.append([fitness, transform])
+        info_list.append(info_inst)
         end1 = time.time()
         print("Registration check vs all took %.5f sec." % (end1-start1))
 
@@ -205,7 +205,7 @@ if __name__ == "__main__":
 
         model_o3d = o3d.geometry.PointCloud()
         model_o3d.points = o3d.utility.Vector3dVector(model[:,0:3])
-        model_o3d.colors = o3d.utility.Vector3dVector(model[:,3:6])
+        model_o3d.colors = o3d.utility.Vector3dVector(model[:,6:9])
 
         model_o3d.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
         model_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
@@ -229,7 +229,7 @@ if __name__ == "__main__":
 
         projection_o3d = o3d.geometry.PointCloud()
         projection_o3d.points = o3d.utility.Vector3dVector(projection[:,0:3])
-        projection_o3d.colors = o3d.utility.Vector3dVector(projection[:,3:6])
+        projection_o3d.colors = o3d.utility.Vector3dVector(projection[:,6:9])
         projection_o3d.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
         projection_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
         _, projection_fpfh = preprocess_point_cloud(projection_o3d, radius_feature)
@@ -237,7 +237,7 @@ if __name__ == "__main__":
         projection_fpfh_list.append([projection_o3d, projection_fpfh])
 
         info_projection = get_info(projection_fpfh_list, models_fpfh_list, method="matching")
-        
+        info_projection = info_projection[0]
         print(info_projection)
 
         max_fitness =  max(info_projection) 
