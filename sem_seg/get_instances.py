@@ -200,7 +200,6 @@ def get_instances(data_label, dim, rad, min_points, ref=False, ref_data=0, ref_r
 
     if len(instances)== 0:
         print("NO INSTANCES FOUND")
-    print(instances)
     return instances, ref_data, stolen_list
         
 
