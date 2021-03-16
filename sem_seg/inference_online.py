@@ -1,17 +1,20 @@
-import argparse
 import os
-import sys
 import re
+import sys
+import time
+import argparse
+import get_info
+import numpy as np
+from model import *
+import project_inst
+import open3d as o3d
+import indoor3d_util
+import get_instances
+from natsort import natsorted
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 sys.path.append(BASE_DIR)
-from model import *
-import indoor3d_util
-import time
-import numpy as np
-import get_instances
-import project_inst
-import get_info
 
 "python inference_online_all.py --path_data a/b/c --path_cls meta/class_or.txt --model_path RUNS/test_indoor --points_sub 128 --points_proj 512 --test_name test_name"
 
@@ -23,6 +26,7 @@ parser.add_argument('--points_sub', type=int, default=256, help='Point number su
 parser.add_argument('--points_proj', type=int, default=0, help='Point number proj [default: 4096]')
 parser.add_argument('--test_name', help='name of the test')
 parser.add_argument('--down_pred', default = True, help='downsample prediction')
+parser.add_argument('--targets_path', help='path in valve models.')
 
 parsed_args = parser.parse_args()
 
@@ -33,6 +37,7 @@ points_sub = parsed_args.points_sub
 points_proj = parsed_args.points_proj
 down_pred = parsed_args.down_pred
 test_name = parsed_args.test_name
+targets_path = parsed_args.targets_path
 dump_path = os.path.join(parsed_args.model_path, "dump_" + test_name)
 if not os.path.exists(dump_path): os.mkdir(dump_path)
 
@@ -92,6 +97,19 @@ def evaluate(data, label, xyz_max, sess, ops):
 
 if __name__=='__main__':
 
+    # get valve matching targets
+    targets_list = list()
+    for file_name in natsorted(os.listdir(targets_path)):
+        target_path = os.path.join(targets_path, file_name)
+        target = get_info.read_ply(target_path, "model")
+        target_o3d = o3d.geometry.PointCloud()
+        target_o3d.points = o3d.utility.Vector3dVector(target[:,0:3])
+        target_o3d.colors = o3d.utility.Vector3dVector(target[:,3:6])
+        target_o3d.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
+        target_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
+        targets_list.append(target_o3d)
+
+    # init tensorflow
     with tf.device('/gpu:'+str(gpu_index)):
         pointclouds_pl, labels_pl = placeholder_inputs(batch_size, points_sub)
         is_training_pl = tf.placeholder(tf.bool, shape=())
@@ -103,7 +121,7 @@ if __name__=='__main__':
  
         # Add ops to save and restore all the variables.
         saver = tf.train.Saver()
-        
+
     # Create a session
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
@@ -121,6 +139,7 @@ if __name__=='__main__':
            'pred_softmax': pred_softmax,
            'loss': loss}
 
+    # LOOP
     while 1:
 
         for root, dirs, files in os.walk(path_data):        # for each folder
@@ -132,7 +151,7 @@ if __name__=='__main__':
                     
                     filepath = os.path.join(root, file[1])
                     data_label_full = np.loadtxt(filepath)  # read from txt (not on xyz origin)
-                    os.remove(filepath)
+                    #os.remove(filepath)
 
                     data_proj = data_label_full.copy()
 
@@ -234,12 +253,25 @@ if __name__=='__main__':
                         instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, dim, rad_v, min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
                         
                         #if points_proj != 0:    # if projection  
-                        #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, data_proj) NO SE PROYECTA, FASTIFIA MATCHING CON PUTNOS DEL SUELO
+                        #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, data_proj) NO SE PROYECTA, FASTIDIA MATCHING CON PUTNOS DEL SUELO
                         
-                        # TODO CALCULATE CENTER OF EACH INSTANCE AND MOVE IT TO ORIGEN
                         info_valves_list = [1, 1, 1, 1, 1, 1, 1, 1, 1]
-                        #info_valves_list2 = get_info.get_info(instances_ref_valve_list, method="matching", models_list) #TODO create models_list as list of [o3d, fpfh]
-                        # TODO RESTORE POSITION to BEFORE MOVING CENTER OF VALVES TO ORIGEN
+
+                        info_valves = list()
+                        for i, inst in enumerate(instances_ref_valve_list):
+
+                            xyz_central = np.mean(inst, axis=0)[0:3]
+                            inst[:, 0:3] -= xyz_central                # move instance to origin
+                            inst_o3d = o3d.geometry.PointCloud()
+                            inst_o3d.points = o3d.utility.Vector3dVector(inst[:,0:3])
+                            inst_o3d.colors = o3d.utility.Vector3dVector(inst[:,3:6])
+                            inst_o3d.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
+                            inst_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
+                            inst[:, 0:3] += xyz_central                # move instance to original position
+                            info_valve = get_info.get_info(inst_o3d, targets_list, method="matching")
+                            info_valves.append(info_valve)
+                        print(info_valves)
+
                         descart_valves_list = [i for i, x in enumerate(info_valves_list) if x == None]
 
                         for i, idx in enumerate(descart_valves_list):

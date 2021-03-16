@@ -4,11 +4,14 @@ import time
 import rospy
 import ctypes
 import struct
+import get_info
 import numpy as np
 from model import *
+import project_inst
+import open3d as o3d
 import indoor3d_util
 import get_instances
-import project_inst
+from natsort import natsorted
 
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
@@ -38,6 +41,19 @@ class Pointcloud_Seg:
         self.gpu_index = 0
         self.desired_points = int(5000/(128/self.points_sub))
 
+
+        # get valve matching targets
+        self.targets_path = "/home/miguel/Desktop/dgcnn/valve_targets"
+        self.targets_list = list()
+        for file_name in natsorted(os.listdir(self.targets_path)):
+            target_path = os.path.join(self.targets_path, file_name)
+            target = get_info.read_ply(target_path, "model")
+            target_o3d = o3d.geometry.PointCloud()
+            target_o3d.points = o3d.utility.Vector3dVector(target[:,0:3])
+            target_o3d.colors = o3d.utility.Vector3dVector(target[:,3:6])
+            target_o3d.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
+            target_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
+            self.targets_list.append(target_o3d)
 
         # Params get_instance
         self.col_inst = {
@@ -207,10 +223,27 @@ class Pointcloud_Seg:
         pred_sub_valve = pred_sub[pred_sub[:,6] == [self.labels["valve"]]]     # get data label pipe
 
         instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
-        #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_proj) # pc_np_base NO SE PROYECTA, FASTIFIA MATCHING CON PUTNOS DEL SUELO
-        # TODO CALCULATE CENTER OF EACH INSTANCE AND MOVE IT TO ORIGEN
-        info_valves_list = [1, 1, 1, 1, 1, 1, 1, 1, 1] # TODO info_valves = get_info(instances_ref_valve_list, method="matching", models_list) #TODO create models_list as list of [o3d, fpfh]
-        # TODO RESTORE POSITION to BEFORE MOVING CENTER OF VALVES TO ORIGEN
+
+
+        #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_proj) # pc_np_base NO SE PROYECTA, FASTIDIA MATCHING CON PUTNOS DEL SUELO
+        info_valves_list = [1, 1, 1, 1, 1, 1, 1, 1, 1]
+
+        t31 = rospy.Time.now()
+
+        info_valves = list()
+        for i, inst in enumerate(instances_ref_valve_list):
+
+            xyz_central = np.mean(inst, axis=0)[0:3]
+            inst[:, 0:3] -= xyz_central                # move instance to origin
+            inst_o3d = o3d.geometry.PointCloud()
+            inst_o3d.points = o3d.utility.Vector3dVector(inst[:,0:3])
+            inst_o3d.colors = o3d.utility.Vector3dVector(inst[:,3:6])
+            inst_o3d.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
+            inst_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
+            inst[:, 0:3] += xyz_central                # move instance to original position
+            info_valve = get_info.get_info(inst_o3d, self.targets_list, method="matching")
+            info_valves.append(info_valve)
+
         descart_valves_list = [i for i, x in enumerate(info_valves_list) if x == None] # TODO if fitness < thr
 
         for i in descart_valves_list:
@@ -225,6 +258,8 @@ class Pointcloud_Seg:
 
         for index in sorted(descart_valves_list, reverse=True):
             del instances_ref_valve_list[index]
+        
+        t32 = rospy.Time.now()
 
         instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim, self.rad_p, self.min_p_p)
         # TODO info_pipes_list = get_info(instances_ref_pipe_list, method="skeleton")
@@ -286,17 +321,19 @@ class Pointcloud_Seg:
         time_read = t1-t0
         time_blocks = t2-t1
         time_inferference = t3-t2
-        time_instaces = t4-t3
+        time_instaces = t4-t32+t31-t3
+        time_valve_info = t32-t31
         time_publish = t5-t4
         time_total = t5-t0
 
 
         rospy.loginfo('[%s]: Pc processing took %.2f seconds. Split into:', self.name, time_total.secs + time_total.nsecs*1e-9)
-        rospy.loginfo('[%s]: Reading --- %.2f seconds (%i%%)', self.name, time_read.secs + time_read.nsecs*1e-9, (time_read/time_total)*100)
-        rospy.loginfo('[%s]: Blocks ---- %.2f seconds (%i%%)', self.name, time_blocks.secs + time_blocks.nsecs*1e-9, (time_blocks/time_total)*100)
-        rospy.loginfo('[%s]: Inference - %.2f seconds (%i%%)', self.name, time_inferference.secs + time_inferference.nsecs*1e-9, (time_inferference/time_total)*100)
-        rospy.loginfo('[%s]: Instances - %.2f seconds (%i%%)', self.name, time_instaces.secs + time_instaces.nsecs*1e-9, (time_instaces/time_total)*100)
-        rospy.loginfo('[%s]: Publish --- %.2f seconds (%i%%)', self.name, time_publish.secs + time_publish.nsecs*1e-9, (time_publish/time_total)*100)
+        rospy.loginfo('[%s]: Reading ---- %.2f seconds (%i%%)', self.name, time_read.secs + time_read.nsecs*1e-9, (time_read/time_total)*100)
+        rospy.loginfo('[%s]: Blocks ----- %.2f seconds (%i%%)', self.name, time_blocks.secs + time_blocks.nsecs*1e-9, (time_blocks/time_total)*100)
+        rospy.loginfo('[%s]: Inference -- %.2f seconds (%i%%)', self.name, time_inferference.secs + time_inferference.nsecs*1e-9, (time_inferference/time_total)*100)
+        rospy.loginfo('[%s]: Instances -- %.2f seconds (%i%%)', self.name, time_instaces.secs + time_instaces.nsecs*1e-9, (time_instaces/time_total)*100)
+        rospy.loginfo('[%s]: Valve info - %.2f seconds (%i%%)', self.name, time_valve_info.secs + time_valve_info.nsecs*1e-9, (time_valve_info/time_total)*100)
+        rospy.loginfo('[%s]: Publish ---- %.2f seconds (%i%%)', self.name, time_publish.secs + time_publish.nsecs*1e-9, (time_publish/time_total)*100)
 
 
 
