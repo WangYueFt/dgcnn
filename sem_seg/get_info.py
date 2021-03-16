@@ -122,29 +122,26 @@ def match1(source, target):
 
 
 def match2(source, target):
-
-    target_pc = target[0]
-    source_pc = source[0]
     
     threshold = 0.02
     matchings = list()
 
     for i in range(16): # 0-15
         trans = np.eye(4)
-        trans[:3,:3] = source_pc.get_rotation_matrix_from_xyz((0,0, (np.pi/8)*i))
-        reg_p2l = o3d.pipelines.registration.evaluate_registration(source_pc, target_pc, threshold, trans)
+        trans[:3,:3] = source.get_rotation_matrix_from_xyz((0,0, (np.pi/8)*i))
+        reg_p2l = o3d.pipelines.registration.evaluate_registration(source, target, threshold, trans)
         matchings.append(reg_p2l.fitness)
         #print("- matching: " + str(reg_p2l.fitness))
-        #draw_registration_result(source_pc, target_pc, trans)
+        #draw_registration_result(source, target, trans)
     
     best_idx = matchings.index(max(matchings))
     best_matching = matchings[best_idx]
 
     #print("-- best matching: " + str(best_matching) + " at angle: " + str((360/16)*(best_idx)))
 
-    trans[:3,:3] = source_pc.get_rotation_matrix_from_xyz((0,0, (np.pi/8)*(best_idx)))
-    reg_p2l = o3d.pipelines.registration.evaluate_registration(source_pc, target_pc, threshold, trans)
-    #draw_registration_result(source_pc, target_pc, trans)
+    trans[:3,:3] = source.get_rotation_matrix_from_xyz((0,0, (np.pi/8)*(best_idx)))
+    reg_p2l = o3d.pipelines.registration.evaluate_registration(source, target, threshold, trans)
+    #draw_registration_result(source, target, trans)
 
     return reg_p2l.fitness, (360/16)*(best_idx)
 
@@ -153,16 +150,13 @@ def get_info_skeleton(instances):
     return info
 
 
-def get_info_matching(instances, models):
-    info_list = list()
-    for inst in instances:
-        info_inst = list()
-        for model in models:
-            #fitness, transform = match1(inst, model)
-            fitness, transform = match2(inst, model)
-            info_inst.append([fitness, transform])
-        info_list.append(info_inst)
-    return info_list
+def get_info_matching(instance, models):
+    info_inst = list()
+    for model in models:
+        #fitness, transform = match1(instance, model)
+        fitness, transform = match2(instance, model)
+        info_inst.append([fitness, transform])
+    return info_inst
 
 
 def get_info(instances, models, method):
@@ -234,6 +228,9 @@ if __name__ == "__main__":
             for i in set(instances_pipe[:,7]):
                 inst = instances_pipe[instances_pipe[:,7] == i]
                 instances_pipe_list.append(inst)
+                #info_pipe = get_info(instances_pipe_list, models=0, method="skeleton")
+
+            info_valves = list()
 
             for i in set(instances_valve[:,7]):
                 inst = instances_valve[instances_valve[:,7] == i]
@@ -250,10 +247,8 @@ if __name__ == "__main__":
                 inst_list.append(inst_o3d)
 
                 instances_valve_list.append([inst_o3d, inst_fpfh, xyz_central])
-
-            #info_pipe = get_info(instances_pipe_list, models=0, method="skeleton")
-            info_valves = get_info(instances_valve_list, models_fpfh_list, method="matching")
-
+                info_valve = get_info([inst_o3d, inst_fpfh], models_fpfh_list, method="matching")
+                info_valves.append(info_valve)
 
             print(info_valves)
 
