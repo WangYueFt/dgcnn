@@ -255,9 +255,8 @@ if __name__=='__main__':
                         #if points_proj != 0:    # if projection  
                         #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, data_proj) NO SE PROYECTA, FASTIDIA MATCHING CON PUTNOS DEL SUELO
                         
-                        info_valves_list = [1, 1, 1, 1, 1, 1, 1, 1, 1]
 
-                        info_valves = list()
+                        info_valves_list = list()
                         for i, inst in enumerate(instances_ref_valve_list):
 
                             xyz_central = np.mean(inst, axis=0)[0:3]
@@ -269,10 +268,11 @@ if __name__=='__main__':
                             inst_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
                             inst[:, 0:3] += xyz_central                # move instance to original position
                             info_valve = get_info.get_info(inst_o3d, targets_list, method="matching")
-                            info_valves.append(info_valve)
-                        print(info_valves)
+                            max_fitness =  max(info_valve) 
+                            max_idx = info_valve.index(max_fitness)
+                            info_valves_list.append([max_fitness, max_idx])
 
-                        descart_valves_list = [i for i, x in enumerate(info_valves_list) if x == None]
+                        descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[0][0] < 0.35] 
 
                         for i, idx in enumerate(descart_valves_list):
                             descarted_points = np.vstack(instances_ref_valve_list[idx])

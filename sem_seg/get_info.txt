@@ -38,12 +38,12 @@ D mirar % time_read para.. -----------------------------------------------------
     - esto afectara a tiempo de matching?
 D convertir numpy en pointcloud open3d
 
-D generar modelos de valvulas en orgien orientados (CAD / nuestras) 
+D generar modelos de valvulas en orgien orientados (CAD / nuestras)
 D get_Info mockup
 D bateria de tests difrentes valvulas, diferentes densidades, target CAD / nuestras, tiempos
 D integrar en get_info.py (pending to test)
-* integrar en pipeline online y ros
-X gestionar % de matching, descartes, hacer matching 3 veces? dependera de lo que vea en bateria de pruebas
+D integrar en pipeline online y ros
+D gestionar % de matching, descartes
 
 -------------------  PIPE  -------------------
 

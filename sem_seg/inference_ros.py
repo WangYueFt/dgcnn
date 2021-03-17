@@ -226,11 +226,10 @@ class Pointcloud_Seg:
 
 
         #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_proj) # pc_np_base NO SE PROYECTA, FASTIDIA MATCHING CON PUTNOS DEL SUELO
-        info_valves_list = [1, 1, 1, 1, 1, 1, 1, 1, 1]
 
         t31 = rospy.Time.now()
 
-        info_valves = list()
+        info_valves_list = list()
         for i, inst in enumerate(instances_ref_valve_list):
 
             xyz_central = np.mean(inst, axis=0)[0:3]
@@ -242,11 +241,14 @@ class Pointcloud_Seg:
             inst_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
             inst[:, 0:3] += xyz_central                # move instance to original position
             info_valve = get_info.get_info(inst_o3d, self.targets_list, method="matching")
-            info_valves.append(info_valve)
+            max_fitness =  max(info_valve) 
+            max_idx = info_valve.index(max_fitness)
+            info_valves_list.append([max_fitness, max_idx])
 
-        descart_valves_list = [i for i, x in enumerate(info_valves_list) if x == None] # TODO if fitness < thr
+        descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[0][0] < 0.35] 
 
         for i in descart_valves_list:
+            print("Valve descarted")
             descarted_points = np.vstack(instances_ref_valve_list[i])
             stolen_idx = list(np.vstack(stolen_list[i])[:,0].astype(int))
             stolen_cls = np.vstack(stolen_list[i])[:,1].astype(int)
