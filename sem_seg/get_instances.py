@@ -1,11 +1,13 @@
 import os
 import re
-import numpy as np
-import math
-import argparse
 import sys
-from natsort import natsorted
+import math
 import time
+import argparse
+import numpy as np
+import open3d as o3d
+from natsort import natsorted
+
 '''
 script to evaluate a model
 
@@ -202,6 +204,39 @@ def get_instances(data_label, dim, rad, min_points, ref=False, ref_data=0, ref_r
         print("NO INSTANCES FOUND")
     return instances, ref_data, stolen_list
         
+
+def get_instances_o3d(data_label, dim, rad, min_points, ref=False, ref_data=0, ref_rad=0.1):
+
+    data_label_copy = data_label.copy()
+    if dim == 2:
+        data_label_copy[...,2] = 0
+
+    data_label_o3d = o3d.geometry.PointCloud()
+    data_label_o3d.points = o3d.utility.Vector3dVector(data_label_copy[:,0:3])
+    data_label_o3d.colors = o3d.utility.Vector3dVector(data_label_copy[:,3:6])
+
+    labels = np.array(data_label_o3d.cluster_dbscan(eps=rad, min_points=10, print_progress=False))
+    labels = labels +1
+
+    instances_np = np.insert(data_label, 7, labels, axis=1)
+    instances_np = instances_np[instances_np[:, -1] != 0]
+
+    instances = list()
+    for i in set(instances_np[..., 7]):
+        inst = instances_np[np.where(instances_np[..., 7] == float(i))]
+        if inst.shape[0]>min_points:
+            instances.append(inst)
+
+    stolen_list = list()
+    if ref:  # if ref -> refine isntance
+        instances, ref_data, stolen_list = refine_instances(instances, ref_data, ref_rad)
+
+    #sys.stdout.write('\n')
+
+    if len(instances)== 0:
+        print("NO INSTANCES FOUND")
+    return instances, ref_data, stolen_list
+
 
 if __name__ == "__main__":
 

@@ -145,8 +145,8 @@ def match2(source, target):
 
     return reg_p2l.fitness, (360/16)*(best_idx)
 
-def get_info_skeleton(instances):
-    z = 1
+def get_info_skeleton(instance):
+    info = 1
     return info
 
 
@@ -159,11 +159,11 @@ def get_info_matching(instance, models):
     return info_inst
 
 
-def get_info(instances, models, method):
+def get_info(instance, models, method):
     if method == "skeleton":
-        info = get_info_skeleton(instances)
+        info = get_info_skeleton(instance)
     elif method == "matching":
-        info = get_info_matching(instances, models)
+        info = get_info_matching(instance, models)
     return info
         
 
@@ -197,14 +197,14 @@ if __name__ == "__main__":
 
         _, model_fpfh = preprocess_point_cloud(model_o3d, radius_feature)
 
-        models_fpfh_list.append([model_o3d, model_fpfh])
+        models_fpfh_list.append(model_o3d)
 
 
     for file_name in natsorted(os.listdir(path_projections)):
         
         info_valves_list = list()
         centrals_list = list()
-        inst_list = list()
+        inst_v_list = list()
 
         if "_pred_inst_ref." in file_name:
 
@@ -227,8 +227,7 @@ if __name__ == "__main__":
 
             for i in set(instances_pipe[:,7]):
                 inst = instances_pipe[instances_pipe[:,7] == i]
-                instances_pipe_list.append(inst)
-                #info_pipe = get_info(instances_pipe_list, models=0, method="skeleton")
+                # info_pipe = get_info(inst_o3d, models=0, method="skeleton")
 
             info_valves = list()
 
@@ -244,13 +243,13 @@ if __name__ == "__main__":
                 inst_o3d.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
                 inst_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
                 _, inst_fpfh = preprocess_point_cloud(inst_o3d, radius_feature)
-                inst_list.append(inst_o3d)
+                inst_v_list.append(inst_o3d)
 
                 instances_valve_list.append([inst_o3d, inst_fpfh, xyz_central])
-                info_valve = get_info([inst_o3d, inst_fpfh], models_fpfh_list, method="matching")
+                info_valve = get_info(inst_o3d, models_fpfh_list, method="matching")
                 info_valves.append(info_valve)
 
-            print(info_valves)
+            #print(info_valves)
 
             for i, info_valve in enumerate(info_valves):
                 max_fitness =  max(info_valve) 
@@ -260,18 +259,13 @@ if __name__ == "__main__":
                 info_valves_list.append([max_fitness, max_idx])
 
                 central = centrals_list[i]
-                inst_o3d = inst_list[i]
-                max_model = copy.deepcopy(models_fpfh_list[max_idx][0])
-
-                #max_model_points_np = np.asarray(max_model.points)
-                #max_model_points_np[:, 0:3] += xyz_central 
-                #max_model.points = o3d.utility.Vector3dVector(max_model_points_np)
+                inst_o3d = inst_v_list[i]
+                max_model = copy.deepcopy(models_fpfh_list[max_idx])
 
                 trans = np.eye(4)
                 trans[:3,:3] = max_model.get_rotation_matrix_from_xyz((0,0, (np.pi/8)*(max_fitness[1]*(16/360))))
-                draw_registration_result(inst_o3d, max_model, trans)
+                #draw_registration_result(inst_o3d, max_model, trans)
 
        
-            print(" ")
-            print(info_valves_list)
+            print("info valves list: "+ str(info_valves_list))
             print(" ")

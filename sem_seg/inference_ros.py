@@ -39,7 +39,7 @@ class Pointcloud_Seg:
         self.block_sub = 0.1
         self.stride_sub = 0.1
         self.gpu_index = 0
-        self.desired_points = int(5000/(128/self.points_sub))
+        self.desired_points = int(6000/(128/self.points_sub)) # 5000
 
 
         # get valve matching targets
@@ -74,8 +74,9 @@ class Pointcloud_Seg:
         13: [255, 100, 0]
         }
         self.rad_p = 0.04
-        self.rad_v = 0.04
-        self.dim = 2
+        self.rad_v = 0.06
+        self.dim_p = 3
+        self.dim_v = 3
         self.min_p_v = 30 # 40 80 140
         self.min_p_p = 60        
         
@@ -222,7 +223,8 @@ class Pointcloud_Seg:
         pred_sub_pipe = pred_sub[pred_sub[:,6] == [self.labels["pipe"]]]       # get data label pipe
         pred_sub_valve = pred_sub[pred_sub[:,6] == [self.labels["valve"]]]     # get data label pipe
 
-        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
+        #instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances_o3d(pred_sub_valve, self.dim_v, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
+        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim_v, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
 
 
         #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_proj) # pc_np_base NO SE PROYECTA, FASTIDIA MATCHING CON PUTNOS DEL SUELO
@@ -263,7 +265,9 @@ class Pointcloud_Seg:
         
         t32 = rospy.Time.now()
 
-        instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim, self.rad_p, self.min_p_p)
+        #instances_ref_pipe_list, _, _  = get_instances.get_instances_o3d(pred_sub_pipe_ref, self.dim_p, self.rad_p, self.min_p_p)
+        instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim_p, self.rad_p, self.min_p_p)
+
         # TODO info_pipes_list = get_info(instances_ref_pipe_list, method="skeleton")
         # TODO descart_pipes_list = ...  metrics to discart pipes
         # TODO merge info_valves and info_pipes into info

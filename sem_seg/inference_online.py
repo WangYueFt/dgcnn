@@ -51,7 +51,7 @@ stride_sub = 0.1
 block_proj = 0.1
 stride_proj = 0.1
 min_p_v = 30
-min_p_p = 70
+min_p_p = 60
 
 
 def evaluate(data, label, xyz_max, sess, ops):
@@ -158,7 +158,7 @@ if __name__=='__main__':
                     if data_label_full.shape[0]> 2000: # 200000 check pointcloud points, a good PC has ~ 480k points  -> 200K for unfiltered PC, 2k for filtered PC
 
                         # subsample data_label_full to match ros subscription
-                        desired_points = int(5000/(128/points_sub))
+                        desired_points = int(6000/(128/points_sub)) # 5000
                         idx_full_sub = np.random.choice(data_label_full.shape[0], desired_points, replace=False)
                         data_label_full_sub = data_label_full[idx_full_sub, 0:6]
 
@@ -217,8 +217,8 @@ if __name__=='__main__':
 
                         # init get_instances parameters
                         rad_p = 0.045
-                        rad_v = 0.045
-                        dim = 2
+                        rad_v = 0.06
+                        dim = 3
                         min_p_v = min_p_v
                         min_p_p = min_p_p
 
