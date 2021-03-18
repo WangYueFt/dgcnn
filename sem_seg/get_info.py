@@ -249,7 +249,7 @@ if __name__ == "__main__":
                 info_valve = get_info(inst_o3d, models_fpfh_list, method="matching")
                 info_valves.append(info_valve)
 
-            #print(info_valves)
+            print(info_valves)
 
             for i, info_valve in enumerate(info_valves):
                 max_fitness =  max(info_valve) 
@@ -264,7 +264,7 @@ if __name__ == "__main__":
 
                 trans = np.eye(4)
                 trans[:3,:3] = max_model.get_rotation_matrix_from_xyz((0,0, (np.pi/8)*(max_fitness[1]*(16/360))))
-                #draw_registration_result(inst_o3d, max_model, trans)
+                draw_registration_result(inst_o3d, max_model, trans)
 
        
             print("info valves list: "+ str(info_valves_list))
