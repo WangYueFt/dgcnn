@@ -47,6 +47,14 @@ D gestionar % de matching, descartes
 
 -------------------  PIPE  -------------------
 
+
+http://www.open3d.org/docs/release/tutorial/geometry/surface_reconstruction.html
+
+http://www.open3d.org/docs/release/tutorial/geometry/mesh.html laplacian for skeleton?
+http://www.open3d.org/docs/release/tutorial/geometry/voxelization.html
+http://www.open3d.org/docs/release/python_api/open3d.geometry.VoxelGrid.html
+
+
 * buscar esqueleto en 3d points
 * buscar esqueleto en 2d ponts
 * convertir points 2d a imagen 2d
