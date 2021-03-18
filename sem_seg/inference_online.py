@@ -250,7 +250,8 @@ if __name__=='__main__':
                         # get instances ref
                         pred_sub_pipe = pred_sub[pred_sub[:,6] == [labels["pipe"]]]       # get data label pipe
                         pred_sub_valve = pred_sub[pred_sub[:,6] == [labels["valve"]]]     # get data label pipe
-                        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, dim, rad_v, min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
+                        #instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, dim, rad_v, min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
+                        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances_o3d(pred_sub_valve, dim, rad_v, min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
                         
                         #if points_proj != 0:    # if projection  
                         #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, data_proj) NO SE PROYECTA, FASTIDIA MATCHING CON PUTNOS DEL SUELO
@@ -288,6 +289,7 @@ if __name__=='__main__':
                             del instances_ref_valve_list[index]
 
                         instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, dim, rad_p, min_p_p)
+                        #instances_ref_pipe_list, _, _  = get_instances.get_instances_o3d(pred_sub_pipe_ref, dim, rad_p, min_p_p)
                         i = len(instances_ref_valve_list)
 
                         if len(instances_ref_valve_list)>0:
