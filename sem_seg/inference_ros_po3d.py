@@ -30,18 +30,18 @@ class Pointcloud_Seg:
 
         self.name = name
         # Params inference
-        self.fps = 2
+        self.fps = 1
         self.period = 1/self.fps
         self.batch_size = 1
         self.points_sub = 256 # 128 256 512
-        self.block_sub = 0.1
-        self.stride_sub = 0.1
+        self.block_sub = 0.2
+        self.stride_sub = 0.2
         self.gpu_index = 0
-        self.desired_points = 15000
+        self.desired_points = 0
     
     
-        self.model_path = "/home/miguel/Desktop/test_ros_subscriber/4_256_11_c7/model.ckpt"
-        self.path_cls = "/home/miguel/Desktop/test_ros_subscriber/4.txt"
+        self.model_path = "/home/miguel/Desktop/test_po3d/256_22_2/model.ckpt"
+        self.path_cls = "/home/miguel/Desktop/test_po3d/1.txt"
         self.classes, self.labels, self.label2color = indoor3d_util.get_info_classes(self.path_cls)
 
         # TODO importar modelos valvulas, convertirlos a o3d pointclouds, calcular fpfh y meterlos en una lista
@@ -129,6 +129,9 @@ class Pointcloud_Seg:
             self.init = True
 
         pc_np = self.pc2array(pc)
+
+        print("points in: " + str(pc_np.shape[0]))
+
         if pc_np.shape[0] < 2000:
             print("not enough input points")
             return
@@ -182,6 +185,9 @@ class Pointcloud_Seg:
 
         pc_base = self.array2pc(header, pc_np_base)
         pc_seg = self.array2pc(header, pred_sub)
+
+        print("points out: " + str(pred_sub.shape[0]))
+
         self.pub_pc_base.publish(pc_base)
         self.pub_pc_seg.publish(pc_seg)
 
@@ -190,6 +196,7 @@ class Pointcloud_Seg:
         time_read = t1-t0
         time_blocks = t2-t1
         time_inferference = t3-t2
+        time_total = t3-t0
 
         rospy.loginfo('[%s]: Pc processing took %.2f seconds. Split into:', self.name, time_total.secs + time_total.nsecs*1e-9)
         rospy.loginfo('[%s]: Reading ---- %.2f seconds (%i%%)', self.name, time_read.secs + time_read.nsecs*1e-9, (time_read/time_total)*100)

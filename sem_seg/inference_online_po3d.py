@@ -40,8 +40,8 @@ num_classes = len(classes)
 
 batch_size = 1
 gpu_index = 0
-block_sub = 0.3
-stride_sub = 0.3
+block_sub = 0.2
+stride_sub = 0.2
 
 def evaluate(data, label, xyz_max, sess, ops):
 
@@ -138,7 +138,7 @@ if __name__=='__main__':
                         # subsample data_label_full to match ros subscription
                         desired_points = 10000
                         idx_full_sub = np.random.choice(data_label_full.shape[0], desired_points, replace=False)
-                        data_label_full_sub = data_label_full[idx_full_sub, 0:6]
+                        data_label_full_sub = data_label_full[:, 0:6]
 
                         xyz_min = np.amin(data_label_full_sub, axis=0)[0:3]  # get pointcloud mins
                         data_label_full_sub[:, 0:3] -= xyz_min               # move pointcloud to origin
