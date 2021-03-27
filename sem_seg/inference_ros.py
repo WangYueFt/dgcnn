@@ -265,17 +265,30 @@ class Pointcloud_Seg:
         
         t32 = rospy.Time.now()
 
-        #instances_ref_pipe_list, _, _  = get_instances.get_instances_o3d(pred_sub_pipe_ref, self.dim_p, self.rad_p, self.min_p_p)
         instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim_p, self.rad_p, self.min_p_p)
+        #instances_ref_pipe_list, _, _  = get_instances.get_instances_o3d(pred_sub_pipe_ref, self.dim_p, self.rad_p, self.min_p_p)
 
+        '''
+        info_pipes_list = list()
+        for i, inst in enumerate(instances_ref_pipe_list):
+            inst_o3d = o3d.geometry.PointCloud()
+            inst_o3d.points = o3d.utility.Vector3dVector(inst[:,0:3])
+            inst_o3d.colors = o3d.utility.Vector3dVector(inst[:,3:6]/255)
+            info_pipe = get_info.get_info(inst_o3d, models=0, method="skeleton")
+            info_pipes_list.append(info_pipe)
+        '''
         # TODO info_pipes_list = get_info(instances_ref_pipe_list, method="skeleton")
-        # TODO descart_pipes_list = ...  metrics to discart pipes
+        # TODO PASAR POR APRAMETRO LONGITUD DESCARTE, ...
+        # TODO UNIR PIPES QUE ESTEN CERCA
         # TODO merge info_valves and info_pipes into info
         # TODO SUMAR X Y Z MINIMO A TODAS LAS POSICIONES X Y Z DE  INFO PIPES Y VALVES
 
-        t4 = rospy.Time.now()
+
 
         # TODO publish info
+
+        t4 = rospy.Time.now()
+        # Publish
 
         i = len(instances_ref_valve_list)
 
@@ -298,7 +311,7 @@ class Pointcloud_Seg:
             print("no isntances found")
             return
 
-        # Publish
+
         for i in range(pred_sub.shape[0]):
             color = self.label2color[pred_sub[i,6]]
             pred_sub[i,3] = color[0]
