@@ -262,6 +262,8 @@ class Pointcloud_Seg:
 
         for index in sorted(descart_valves_list, reverse=True):
             del instances_ref_valve_list[index]
+
+        # TODO GESTIONAR ORIENTACION VALVULAS A APRTIR DE ANGULO?
         
         t32 = rospy.Time.now()
 
@@ -279,7 +281,8 @@ class Pointcloud_Seg:
         '''
         # TODO info_pipes_list = get_info(instances_ref_pipe_list, method="skeleton")
         # TODO PASAR POR APRAMETRO LONGITUD DESCARTE, ...
-        # TODO UNIR PIPES QUE ESTEN CERCA
+        # TODO UNIR PIPES QUE ESTEN CERCA Y SU VECTOR SEA PARECIDO
+        # TODO QUE LAS VALVULAS QUE ESTAN CONECTADAS A 1 O 2 TUBERIAS COJAN LA MEAN DE SUS VECTORES COMO SU ORIENTACION
         # TODO merge info_valves and info_pipes into info
         # TODO SUMAR X Y Z MINIMO A TODAS LAS POSICIONES X Y Z DE  INFO PIPES Y VALVES
 
