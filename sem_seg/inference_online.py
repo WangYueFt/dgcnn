@@ -164,7 +164,6 @@ if __name__=='__main__':
 
                         xyz_min = np.amin(data_label_full_sub, axis=0)[0:3]  # get pointcloud mins
                         data_label_full_sub[:, 0:3] -= xyz_min               # move pointcloud to origin
-                        data_proj[:, 0:3] -= xyz_min                         # move pointcloud to origin
                         xyz_max = np.amax(data_label_full_sub, axis=0)[0:3] # get pointcloud maxs
 
                         ''' 
@@ -188,7 +187,7 @@ if __name__=='__main__':
                         with tf.Graph().as_default():
                             pred_sub = evaluate(data_sub, label_sub, xyz_max, sess, ops)  # evaluate PC
                         pred_sub = np.unique(pred_sub, axis=0)                            # delete duplicates from room2blocks
-                        #pred_sub[:, 0:3] += xyz_min                                       # recover PC's original position
+                        pred_sub[:, 0:3] += xyz_min                                       # recover PC's original position
 
                         if down_pred == True:                  # if subsampling of prediciton is wanted
                             down = 128/points_sub                 # down_pred to 128
@@ -271,9 +270,9 @@ if __name__=='__main__':
                             info_valve = get_info.get_info(inst_o3d, targets_list, method="matching")
                             max_fitness =  max(info_valve) 
                             max_idx = info_valve.index(max_fitness)
-                            info_valves_list.append([max_fitness, max_idx])
+                            info_valves_list.append([xyz_central, max_fitness, max_idx])
 
-                        descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[0][0] < 0.35] 
+                        descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[1][0] < 0.35] 
 
                         for i, idx in enumerate(descart_valves_list):
                             descarted_points = np.vstack(instances_ref_valve_list[idx])
@@ -288,11 +287,15 @@ if __name__=='__main__':
                         for index in sorted(descart_valves_list, reverse=True):
                             del instances_ref_valve_list[index]
 
+                        print("INFO VALVES:")
+                        for i, inst in enumerate(info_valves_list):
+                            print(inst)
+
                         # TODO GESTIONAR ORIENTACION VALVULAS A APRTIR DE ANGULO?
 
                         instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, dim, rad_p, min_p_p)
                         #instances_ref_pipe_list, _, _  = get_instances.get_instances_o3d(pred_sub_pipe_ref, dim, rad_p, min_p_p)
-                        '''
+                        
                         info_pipes_list = list()
                         for i, inst in enumerate(instances_ref_pipe_list):
                             inst_o3d = o3d.geometry.PointCloud()
@@ -300,10 +303,18 @@ if __name__=='__main__':
                             inst_o3d.colors = o3d.utility.Vector3dVector(inst[:,3:6]/255)
                             info_pipe = get_info.get_info(inst_o3d, models=0, method="skeleton")
                             info_pipes_list.append(info_pipe)
-                        '''
+
+                        print("INFO PIPES:")
+                        for i, inst in enumerate(info_pipes_list):
+                            print("info instance " + str(i))
+                            print("-- chains:")
+                            for pipe in inst[0]:
+                                print(pipe)
+                            print("-- conexions:")
+                            for con in inst[1]:
+                                print(con)
                         
-                        # TODO info_pipes_list = get_info(instances_ref_pipe_list, method="skeleton")
-                        # TODO PASAR POR APRAMETRO LONGITUD DESCARTE, ...
+                        # TODO PASAR PARAMETROS
                         # TODO UNIR PIPES QUE ESTEN CERCA Y SU VECTOR SEA PARECIDO
                         # TODO QUE LAS VALVULAS QUE ESTAN CONECTADAS A 1 O 2 TUBERIAS COJAN LA MEAN DE SUS VECTORES COMO SU ORIENTACION
                         # TODO merge info_valves and info_pipes into info
@@ -327,8 +338,6 @@ if __name__=='__main__':
                             instances_ref = instances_ref_valve
                         else:
                             instances_ref = None
-
-                        pred_sub[:, 0:3] += xyz_min                                       # recover PC's original position
 
                         fout_sub = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_sub.obj'), 'w')
                         fout_sub_col = open(os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_pred_sub_col.obj'), 'w')

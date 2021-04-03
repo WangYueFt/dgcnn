@@ -80,8 +80,8 @@ class Pointcloud_Seg:
         self.min_p_v = 30 # 40 80 140
         self.min_p_p = 60        
         
-        self.model_path = "/home/miguel/Desktop/test_ros_subscriber/4_256_11_c7/model.ckpt"
-        self.path_cls = "/home/miguel/Desktop/test_ros_subscriber/4.txt"
+        self.model_path = "/home/miguel/Desktop/dgcnn/sem_seg/RUNS/4_256_11_c7/model.ckpt"
+        self.path_cls = "/home/miguel/Desktop/dgcnn/sem_seg/RUNS/4_256_11_c7/cls.txt"
         self.classes, self.labels, self.label2color = indoor3d_util.get_info_classes(self.path_cls)
 
         # TODO importar modelos valvulas, convertirlos a o3d pointclouds, calcular fpfh y meterlos en una lista
@@ -185,7 +185,6 @@ class Pointcloud_Seg:
 
         xyz_min = np.amin(pc_np, axis=0)[0:3]   # get pointcloud mins
         pc_np[:, 0:3] -= xyz_min                # move pointcloud to origin
-        pc_proj[:, 0:3] -= xyz_min 
         xyz_max = np.amax(pc_np, axis=0)[0:3]   # get pointcloud maxs
 
         t1 = rospy.Time.now()
@@ -207,6 +206,7 @@ class Pointcloud_Seg:
 
         pred_sub = np.unique(pred_sub, axis=0) # delete duplicates from room2blocks
 
+        pred_sub[:, 0:3] += xyz_min
 
         t3 = rospy.Time.now()
 
@@ -245,9 +245,9 @@ class Pointcloud_Seg:
             info_valve = get_info.get_info(inst_o3d, self.targets_list, method="matching")
             max_fitness =  max(info_valve) 
             max_idx = info_valve.index(max_fitness)
-            info_valves_list.append([max_fitness, max_idx])
+            info_valves_list.append([xyz_central, max_fitness, max_idx])
 
-        descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[0][0] < 0.35] 
+        descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[1][0] < 0.35] 
 
         for i in descart_valves_list:
             print("Valve descarted")
@@ -262,7 +262,12 @@ class Pointcloud_Seg:
 
         for index in sorted(descart_valves_list, reverse=True):
             del instances_ref_valve_list[index]
+            del info_valves_list[index]
 
+        print("INFO VALVES:")
+        for i, inst in enumerate(info_valves_list):
+            print(inst)
+        print(" ")
         # TODO GESTIONAR ORIENTACION VALVULAS A APRTIR DE ANGULO?
         
         t32 = rospy.Time.now()
@@ -270,7 +275,9 @@ class Pointcloud_Seg:
         instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim_p, self.rad_p, self.min_p_p)
         #instances_ref_pipe_list, _, _  = get_instances.get_instances_o3d(pred_sub_pipe_ref, self.dim_p, self.rad_p, self.min_p_p)
 
-        '''
+        t33 = rospy.Time.now()
+
+
         info_pipes_list = list()
         for i, inst in enumerate(instances_ref_pipe_list):
             inst_o3d = o3d.geometry.PointCloud()
@@ -278,15 +285,21 @@ class Pointcloud_Seg:
             inst_o3d.colors = o3d.utility.Vector3dVector(inst[:,3:6]/255)
             info_pipe = get_info.get_info(inst_o3d, models=0, method="skeleton")
             info_pipes_list.append(info_pipe)
-        '''
-        # TODO info_pipes_list = get_info(instances_ref_pipe_list, method="skeleton")
-        # TODO PASAR POR APRAMETRO LONGITUD DESCARTE, ...
+        
+        print("INFO PIPES:")
+        for i, inst in enumerate(info_pipes_list):
+            print("info instance " + str(i))
+            print("-- chains:")
+            for pipe in inst[0]:
+                print(pipe)
+            print("-- conexions:")
+            for con in inst[1]:
+                print(con)
+        print(" ")
+        # TODO PASAR PARAMETROS
         # TODO UNIR PIPES QUE ESTEN CERCA Y SU VECTOR SEA PARECIDO
         # TODO QUE LAS VALVULAS QUE ESTAN CONECTADAS A 1 O 2 TUBERIAS COJAN LA MEAN DE SUS VECTORES COMO SU ORIENTACION
         # TODO merge info_valves and info_pipes into info
-        # TODO SUMAR X Y Z MINIMO A TODAS LAS POSICIONES X Y Z DE  INFO PIPES Y VALVES
-
-
 
         # TODO publish info
 
@@ -311,7 +324,7 @@ class Pointcloud_Seg:
             instances_ref = None
 
         if instances_ref is None: # if instances were not found
-            print("no isntances found")
+            print("no instances found")
             return
 
 
@@ -327,10 +340,6 @@ class Pointcloud_Seg:
             instances_ref[i,4] = color[1]
             instances_ref[i,5] = color[2]
 
-        pc_np_base[:, 0:3] += xyz_min  # return to initial position
-        pred_sub[:, 0:3] += xyz_min  # return to initial position
-        instances_ref[:, 0:3] += xyz_min  # return to initial position
-
         pc_base = self.array2pc(header, pc_np_base)
         pc_seg = self.array2pc(header, pred_sub)
         pc_inst = self.array2pc(header, instances_ref)
@@ -343,21 +352,27 @@ class Pointcloud_Seg:
         time_read = t1-t0
         time_blocks = t2-t1
         time_inferference = t3-t2
-        time_instaces = t4-t32+t31-t3
+        time_instaces = t33-t32+t31-t3
         time_valve_info = t32-t31
+        time_pipe_info = t4-t33
         time_publish = t5-t4
         time_total = t5-t0
 
-
+        print("INFO TIMES:")
         rospy.loginfo('[%s]: Pc processing took %.2f seconds. Split into:', self.name, time_total.secs + time_total.nsecs*1e-9)
         rospy.loginfo('[%s]: Reading ---- %.2f seconds (%i%%)', self.name, time_read.secs + time_read.nsecs*1e-9, (time_read/time_total)*100)
         rospy.loginfo('[%s]: Blocks ----- %.2f seconds (%i%%)', self.name, time_blocks.secs + time_blocks.nsecs*1e-9, (time_blocks/time_total)*100)
         rospy.loginfo('[%s]: Inference -- %.2f seconds (%i%%)', self.name, time_inferference.secs + time_inferference.nsecs*1e-9, (time_inferference/time_total)*100)
         rospy.loginfo('[%s]: Instances -- %.2f seconds (%i%%)', self.name, time_instaces.secs + time_instaces.nsecs*1e-9, (time_instaces/time_total)*100)
         rospy.loginfo('[%s]: Valve info - %.2f seconds (%i%%)', self.name, time_valve_info.secs + time_valve_info.nsecs*1e-9, (time_valve_info/time_total)*100)
+        rospy.loginfo('[%s]: Pipe info - %.2f seconds (%i%%)', self.name, time_pipe_info.secs + time_pipe_info.nsecs*1e-9, (time_pipe_info/time_total)*100)
         rospy.loginfo('[%s]: Publish ---- %.2f seconds (%i%%)', self.name, time_publish.secs + time_publish.nsecs*1e-9, (time_publish/time_total)*100)
-
-
+        print(" ")
+        print(" ")
+        print("--------------------------------------------------------------------------------------------------")
+        print("--------------------------------------------------------------------------------------------------")
+        print(" ")
+        print(" ")
 
     
     def pc2array(self, ros_pc):

@@ -62,13 +62,6 @@ def read_ply(filename, type):
     return pc_array
 
 
-def get_distance(p1,p2, dim):
-    if dim == 2:
-        d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2))
-    if dim == 3:
-        d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2)+((p2[2]-p1[2])**2))
-    return d
-
 def draw_registration_result(source, target, transformation):
     source_temp = copy.deepcopy(source)
     target_temp = copy.deepcopy(target)
@@ -108,35 +101,7 @@ def execute_global_registration(source, target, source_fpfh,
     return result
 
 
-def match1(source, target):
-
-    target_pc = target[0]
-    target_fpfh = target[1]
-    source_pc = source[0]
-    source_fpfh = source[1]
-    
-    threshold = 0.2
-
-    result_ransac = execute_global_registration(source_pc, target_pc, source_fpfh, target_fpfh, threshold)
-    source_pc.transform(result_ransac.transformation)
-
-    threshold = 0.02
-    trans_init = np.asarray([[1, 0, 0, 0],
-                             [0, 1, 0, 0],
-                             [0, 0, 1, 0], 
-                             [0, 0, 0, 1]])
-
-    reg_p2l = o3d.pipelines.registration.registration_icp(source_pc, target_pc, threshold, trans_init, o3d.pipelines.registration.TransformationEstimationPointToPlane())
-
-    transformation = np.matmul(result_ransac.transformation,reg_p2l.transformation)
-
-    #print("--matching: " + str(reg_p2l.fitness))
-    #draw_registration_result(source_pc, target_pc, reg_p2l.transformation)
-
-    return reg_p2l.fitness, transformation
-
-
-def match2(source, target):
+def match(source, target):
     
     threshold = 0.02
     matchings = list()
@@ -174,9 +139,7 @@ def print_chain(chain, maxs = np.array([])):
     plt.show()
 
     
-
 def get_connectivity(array):
-
 
     chains = list()
     connexions = list()
@@ -396,215 +359,21 @@ def get_info_connexions(connexions, chains):
     for i in sorted(chain_del_list, reverse=True):
         del chains[i]
 
-    '''
-    nonequal = False
-    while nonequal == False:
-        for i, chain1 in enumerate(chains):
-            for j , chain2 in enumerate(chains):
-                if i != j:
-                    if chain1.shape == chain2.shape:
-                        comparison = chain1 == chain1
-                        equal_arrays = comparison.all()
-                        if equal_arrays == True:
-                            del chains[j]
-                            break
-            else:
-                if i == len(chains)-1:
-                    nonequal = True
-                continue
-            break
-
-    chain_del_list2 = list()
-    for i, chain1 in enumerate(chains):
-        for j , chain2 in enumerate(chains):
-            if i != j:
-                chain_test = np.vstack((chain1,chain2))
-                chain_test_u = np.unique(chain_test, axis=0)
-                if chain1.shape[0] == chain_test_u.shape[0]:
-                    chain_del_list2.append(j) 
-    for i in sorted(set(chain_del_list2), reverse=True):
-        del chains[i]    
-    '''
-
-    return connexions_info, chains
-
-def get_info_connexions_points(connexions, chains):
-
-    connexions_info = list()
-
-    for connexion in connexions:
-        near_chains_list = list()
-        for i, chain in enumerate(chains):
-            d_to_start = get_distance(connexion, chain[0], 2)
-            d_to_end = get_distance(connexion, chain[-1], 2)
-            if d_to_start <= 0.024 or d_to_end <= 0.024:
-                near_chains_list.append(i)
-        connexions_info.append([connexion, near_chains_list])
-    
-    #delete connexions with only 1 near pipe, possible due to the deletion of short chains
-    connexion_del_list = list()
-    for i, c_info in enumerate(connexions_info):
-        if len(c_info[1])<=1:
-            connexion_del_list.append(i)
-    for i in sorted(connexion_del_list, reverse=True):
-        del connexions_info[i]
-
-    connexion_del_list = list()
-    new_connexions_info = list()
-    for i, c_info1 in enumerate(connexions_info):
-        if i not in connexion_del_list:
-            for j, c_info2 in enumerate(connexions_info):
-                if j not in connexion_del_list:
-                    d_to_c = get_distance(c_info1[0],c_info2[0], 2)
-                    if d_to_c <= 0.024 and i != j:
-                        connexion_del_list.append(i)
-                        connexion_del_list.append(j)
-                        new_near_chains_list = list(set(c_info1[1]+c_info2[1]))
-                        new_connexions_info.append([c_info1[0], new_near_chains_list])
-
-    for i in sorted(connexion_del_list, reverse=True):
-        del connexions_info[i]
-
-    connexions_info = connexions_info + new_connexions_info
-
-    connexion_del_list = list()
-
-    for i, c_info in enumerate(connexions_info):
-        if len(c_info[1])==2:
-
-            if any(np.array_equal(chains[c_info[1][0]][0], x) for x in chains[c_info[1][1]]) == False and any(np.array_equal(chains[c_info[1][1]][0], x) for x in chains[c_info[1][0]]) == False: # para evitar que se comparen 2 cadenas que una contiene a la otra
-                
-                connexion_del_list.append(i)
-
-                d_to_start1 = get_distance(c_info[0], chains[c_info[1][0]][0], 2)
-                d_to_end1 = get_distance(c_info[0], chains[c_info[1][0]][-1], 2)
-                d_to_start2 = get_distance(c_info[0], chains[c_info[1][1]][0], 2)
-                d_to_end2 = get_distance(c_info[0], chains[c_info[1][1]][-1], 2)
-
-                union1 = [d_to_start1, d_to_end1].index(min([d_to_start1, d_to_end1]))
-                union2 = [d_to_start2, d_to_end2].index(min([d_to_start2, d_to_end2]))
-
-                chain1 = chains[c_info[1][0]]
-                chain2 = chains[c_info[1][1]]
-
-                if union1 == 0:
-                    if union2 == 0:
-                        chain2 = np.flipud(chain2)
-                        chain2 = np.vstack((chain2, c_info[0]))
-                        new_chain = np.vstack((chain2, chain1))
-                    else:
-                        chain2 = np.vstack((chain2, c_info[0]))
-                        new_chain = np.vstack((chain2, chain1))
-                else:
-                    if union2 == 0:
-                        chain1 = np.vstack((chain1, c_info[0]))
-                        new_chain = np.vstack((chain1, chain2))
-                    else:
-                        chain2 = np.flipud(chain2)
-                        chain1 = np.vstack((chain1, c_info[0]))
-                        new_chain = np.vstack((chain1, chain2))
-
-                new_chain_unique = numpy_unique(new_chain)   # en get_info_connexions_points se ha de hacer porque conexion y punto de cadena se pueden haber proyectado al mismo
-
-                chains[c_info[1][0]] = new_chain_unique
-                chains[c_info[1][1]] = new_chain_unique
-            
-    for i in sorted(connexion_del_list, reverse=True):
-        del connexions_info[i]
-
-    chain_del_list = list()
-    for i, chain1 in enumerate(chains):
-        if i not in chain_del_list:
-            for j , chain2 in enumerate(chains):
-                if j not in chain_del_list:
-                    if i != j:
-                        chain_test = np.vstack((chain1,chain2))
-                        chain_test_u = np.unique(chain_test, axis=0)
-                        if chain1.shape[0] == chain_test_u.shape[0]:
-                            chain_del_list.append(j) 
-    for i in sorted(chain_del_list, reverse=True):
-        del chains[i]
-
-    '''
-    nonequal = False
-    while nonequal == False:
-        for i, chain1 in enumerate(chains):
-            for j , chain2 in enumerate(chains):
-                if i != j:
-                    if chain1.shape == chain2.shape:
-                        comparison = chain1 == chain1
-                        equal_arrays = comparison.all()
-                        if equal_arrays == True:
-                            del chains[j]
-                            break
-            else:
-                if i == len(chains)-1:
-                    nonequal = True
-                continue
-            break
-
-    chain_del_list2 = list()
-    for i, chain1 in enumerate(chains):
-        for j , chain2 in enumerate(chains):
-            if i != j:
-                chain_test = np.vstack((chain1,chain2))
-                chain_test_u = np.unique(chain_test, axis=0)
-                if chain1.shape[0] == chain_test_u.shape[0]:
-                    chain_del_list2.append(j) 
-    for i in sorted(set(chain_del_list2), reverse=True):
-        del chains[i]    
-    '''
-
     return connexions_info, chains
 
 
 def get_info_skeleton(instance):
 
     print_opt = False
-
     #print_o3d(instance)
 
-    '''
-    # VOXELS FROM MESH
-
-    tetra_mesh, pt_map = o3d.geometry.TetraMesh.create_from_point_cloud(instance1)
-    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(instance1, 0.066, tetra_mesh, pt_map)
-    mesh.compute_vertex_normals()
-    o3d.visualization.draw_geometries([mesh], mesh_show_back_face=True)
-
-    instance2 = copy.deepcopy(instance)
-    instance2.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
-    instance2.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
-    radii = [0.005, 0.01, 0.02, 0.04, 0.06, 0.08, 0.1]
-    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(instance2, o3d.utility.DoubleVector(radii))
-    o3d.visualization.draw_geometries([instance2, mesh])
-
-    instance3 = copy.deepcopy(instance)
-    instance3.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
-    instance3.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
-    mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(instance3, depth=5)
-    o3d.visualization.draw_geometries([mesh])
-
-    voxel_grid2 = o3d.geometry.VoxelGrid.create_from_triangle_mesh(mesh,voxel_size=0.03)
-    voxels = o3d.geometry.VoxelGrid.get_voxels(voxel_grid2)
-    print_o3d(voxel_grid2)
-
-    # skeleton from mesh by thining
-    mesh_out = mesh.filter_smooth_laplacian(number_of_iterations=50)
-    mesh_out.compute_vertex_normals()
-    print_o3d(mesh_out)
-    
-    '''
-
-
     # VOXELS FROM POINTCLOUD
-
     instance1 = copy.deepcopy(instance)
     voxel_grid1 = o3d.geometry.VoxelGrid.create_from_point_cloud(instance1,voxel_size=0.008)
     #print_o3d(voxel_grid1)
 
     voxels = o3d.geometry.VoxelGrid.get_voxels(voxel_grid1)
-    print("n voxels: " + str(len(voxels)))
+    #print("n voxels: " + str(len(voxels)))
     #print(voxels)
 
     voxels_np = np.zeros((len(voxels),3), dtype=int)
@@ -629,34 +398,6 @@ def get_info_skeleton(instance):
     if print_opt == True:
         plt.show()
 
-    '''
-    # SKELETON 3D
-
-    voxels_matrix_proc = scp.ndimage.binary_closing(voxels_matrix, structure=np.ones((6,6,6)))
-    z,x,y = voxels_matrix_proc.nonzero()
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(x, y, -z, zdir='z', c= 'red')
-    if print_opt == True:
-        plt.show()
-
-    voxels_matrix_proc = scp.ndimage.binary_opening(voxels_matrix_proc, structure=np.ones((1,1,1)))
-    z,x,y = voxels_matrix_proc.nonzero()
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(x, y, -z, zdir='z', c= 'red')
-    if print_opt == True:
-        plt.show()
-
-
-    skeleton_3d = skeletonize(voxels_matrix_proc, method='lee')
-    z,x,y = skeleton_3d.nonzero()
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(x, y, -z, zdir='z', c= 'red')
-    if print_opt == True:
-        plt.show()
-    '''
 
     voxels_matrix_2d = np.zeros((xyz_max[1]+1, xyz_max[2]+1), dtype=int)
     for i, v in enumerate(voxels_np):
@@ -693,73 +434,6 @@ def get_info_skeleton(instance):
     #    for chain in chains:
     #        print_chain(chain, xyz_max)
 
-
-    # TODO DEPENDING ON TIME, TO DELETE REAL SHORT CHAINS, PROJECT TO VOXEL, VOXEL TO POINT, ITERATE THROUGH EACH POINT OF A CHAIN AND ADD DSITANCES TO GET REAL LENGTH OF A CHAIN, DELETE FROM ACTUAL CHAINS VARIABLE
-    # AS THE GET INFO CONNEXIONS USES ACTUAL VOXEL CHAINS, CAN WE KEEP THE POINT CHAINS? WOULD NEED TO BE LINKED, GET_INFO CONENXIONS WOULD NEED CONNEXINS IN POINTS ASWELL AND COMPUTE REAL DISTANCES INSTEAD OF MANHATTAN
-
-    '''   
-
-    # project to nearest real voxel
-    connexions_proj = list()
-    for i, con in enumerate(connexions):
-        print("entro en proj de connexions")
-        con_proj = proj_voxel(con, voxels_matrix_2d, int(math.ceil(close_dist/2)))
-        #print("voxel: " + str(con))
-        #print("voxel_proj: " + str(con_proj))
-        connexions_proj.append(con_proj)
-
-    chains_proj = list()    
-    for i, chain in enumerate(chains):
-        print("entro en proj de chains")
-        chain_proj= list()
-        for v in chain:
-            v_proj = proj_voxel(v, voxels_matrix_2d, int(math.ceil(close_dist/2)))
-            chain_proj.append(v_proj)
-        chain_proj_np = np.array(chain_proj)
-        chain_proj_np_unique = numpy_unique(chain_proj_np)
-        chains_proj.append(chain_proj_np_unique)
-
-    # convert voxels of chains and connexions to points
-    corr_list = list()
-    instance1_points = np.asarray(instance1.points)
-    #print("n points: " + str(instance1_points.shape))
-    for p in instance1_points:
-        voxel = o3d.geometry.VoxelGrid.get_voxel(voxel_grid1, p)
-        corr_list.append(voxel)
-
-    #print(corr_list)
-    connexions_points = list()
-    for i, con in enumerate(connexions_proj):
-        print("entro en conversion de connexions")
-        p = voxel_to_point(con, instance1_points, corr_list)
-        connexions_points.append(p)
-
-    chains_points = list()    
-    for i, chain in enumerate(chains_proj):
-        print("entro en conversion de chains")
-        chain_point= list()
-        for v in chain:
-            p = voxel_to_point(v, instance1_points, corr_list)
-            chain_point.append(p)
-        chain_point_np = np.array(chain_point)
-        chains_points.append(chain_point_np)
-
-    chain_del_list = list()
-    for i, chain in enumerate(chains_points):
-        len_chain = 0
-        for j in range(len(chain)-1):
-            len_ring = get_distance(chain[j], chain[j+1], 3)
-            len_chain = len_chain + len_ring
-        if len_chain < 0.1:
-            chain_del_list.append(i)
-    for i in sorted(chain_del_list, reverse=True):
-        del chains_points[i]
-
-    connexions_points, chains_points = get_info_connexions_points(connexions_points, chains_points)
-    '''
-
-
-
     
     # delete short chains
     chain_del_list = list()
@@ -777,15 +451,15 @@ def get_info_skeleton(instance):
 
 
     connexions, chains = get_info_connexions(connexions, chains)
-    print("CHAINS INFO")
     if print_opt == True:
+        print("CHAINS INFO")
+
         for chain in chains:
             print_chain(chain, xyz_max)
-    print("CONNEXIONS")
-    print(connexions)
+        print("CONNEXIONS")
+        print(connexions)
 
-    print("OVERVIEW")
-    if print_opt == True:
+        print("OVERVIEW")
         chainoverview = chains[0]
         for i, chain in enumerate(chains):
             if i != 0:
@@ -797,7 +471,6 @@ def get_info_skeleton(instance):
     # project to nearest real voxel
     connexions_proj = list()
     for i, con in enumerate(connexions):
-        print("entro en proj de connexions")
         v = con[0]
         v_proj = proj_voxel(v, voxels_matrix_2d, int(math.ceil(close_dist/2)))
         #print("voxel: " + str(v))
@@ -806,7 +479,6 @@ def get_info_skeleton(instance):
 
     chains_proj = list()    
     for i, chain in enumerate(chains):
-        print("entro en proj de chains")
         chain_proj= list()
         for v in chain:
             v_proj = proj_voxel(v, voxels_matrix_2d, int(math.ceil(close_dist/2)))
@@ -826,14 +498,12 @@ def get_info_skeleton(instance):
     #print(corr_list)
     connexions_points = list()
     for i, con in enumerate(connexions_proj):
-        print("entro en conversion de connexions")
         v = con[0]
         p = voxel_to_point(v, instance1_points, corr_list)
         connexions_points.append([p,con[1]])
 
     chains_points = list()    
     for i, chain in enumerate(chains_proj):
-        print("entro en conversion de chains")
         chain_point= list()
         for v in chain:
             p = voxel_to_point(v, instance1_points, corr_list)
@@ -915,6 +585,7 @@ def get_info_skeleton(instance):
         end = chain[end_idx]
 
         info_chain = [chain, start, end, elbow_list, vector_chain_list]
+        #info_chain = [start, end, elbow_list, vector_chain_list]
         info_chains.append(info_chain)
     
     info = [info_chains, connexions_points]
@@ -941,8 +612,6 @@ def get_position_idx(vector_list, percentage):
     return position
 
 
-
-
 def proj_voxel(voxel, voxels, max_d):
     if voxels[voxel[0], voxel[1]] == 1:
         voxel_proj = voxel
@@ -966,11 +635,11 @@ def voxel_to_point(voxel, points, corr):
     point = np.mean(corr_point_np, axis=0)    # TODO USAR MEAN?
     return point
 
+
 def get_info_matching(instance, models):
     info_inst = list()
     for model in models:
-        #fitness, transform = match1(instance, model)
-        fitness, transform = match2(instance, model)
+        fitness, transform = match(instance, model)
         info_inst.append([fitness, transform])
     return info_inst
 
@@ -1027,8 +696,6 @@ if __name__ == "__main__":
             print("evaluating case: " + file_name)
             path_projection = os.path.join(path_projections, file_name)
             projection = np.loadtxt(path_projection, usecols=[1,2,3,4,5,6,7,8])
-            #print(projection)
-            #print(projection.shape)
 
             proj_o3d = o3d.geometry.PointCloud()
             proj_o3d.points = o3d.utility.Vector3dVector(projection[:,0:3])

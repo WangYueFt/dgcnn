@@ -198,10 +198,10 @@ def get_instances(data_label, dim, rad, min_points, ref=False, ref_data=0, ref_r
         end = time.time()
         time_ref = end - start
 
-    sys.stdout.write('\n')
+    #sys.stdout.write('\n')
 
-    if len(instances)== 0:
-        print("NO INSTANCES FOUND")
+    #if len(instances)== 0:
+        #print("NO INSTANCES FOUND")
     return instances, ref_data, stolen_list
         
 
