@@ -26,24 +26,22 @@ from sensor_msgs.msg import Image, CameraInfo
 
 
 class Pointcloud_Seg:
+
     def __init__(self, name):
-
-
-
         self.name = name
-        # Params inference
-        self.fps = 2
-        self.period = 1/self.fps
-        self.batch_size = 1
-        self.points_sub = 256 # 128 256 512
-        self.block_sub = 0.1
-        self.stride_sub = 0.1
-        self.gpu_index = 0
-        self.desired_points = int(6000/(128/self.points_sub)) # 5000
 
+        # Params inference
+        self.fps = 2                # target fps        //PARAM
+        self.period = 1/self.fps    # target period     //PARAM
+        self.batch_size = 1         #                   //PARAM
+        self.points_sub = 256       #                   //PARAM
+        self.block_sub = 0.1        #                   //PARAM
+        self.stride_sub = 0.1       #                   //PARAM
+        self.gpu_index = 0          #                   //PARAM
+        self.desired_points = int(6000/(128/self.points_sub))  # n of points to wich the received pc will be downsampled    //PARAM
 
         # get valve matching targets
-        self.targets_path = "/home/miguel/Desktop/dgcnn/valve_targets"
+        self.targets_path = "/home/miguel/Desktop/dgcnn/valve_targets"      # //PARAM
         self.targets_list = list()
         for file_name in natsorted(os.listdir(self.targets_path)):
             target_path = os.path.join(self.targets_path, file_name)
@@ -51,8 +49,8 @@ class Pointcloud_Seg:
             target_o3d = o3d.geometry.PointCloud()
             target_o3d.points = o3d.utility.Vector3dVector(target[:,0:3])
             target_o3d.colors = o3d.utility.Vector3dVector(target[:,3:6])
-            target_o3d.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
-            target_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
+            target_o3d.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))  # //PARAM
+            target_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))                    # //PARAM
             self.targets_list.append(target_o3d)
 
         # Params get_instance
@@ -73,41 +71,37 @@ class Pointcloud_Seg:
         13: [0, 255, 100],
         13: [255, 100, 0]
         }
-        self.rad_p = 0.04
-        self.rad_v = 0.06
-        self.dim_p = 3
-        self.dim_v = 3
-        self.min_p_v = 30 # 40 80 140
-        self.min_p_p = 60        
-        
-        self.model_path = "/home/miguel/Desktop/dgcnn/sem_seg/RUNS/4_256_11_c7/model.ckpt"
-        self.path_cls = "/home/miguel/Desktop/dgcnn/sem_seg/RUNS/4_256_11_c7/cls.txt"
-        self.classes, self.labels, self.label2color = indoor3d_util.get_info_classes(self.path_cls)
+        self.rad_p = 0.04               # max distance for pipe growing                             //PARAM
+        self.rad_v = 0.06               # max distance for valve growing                            //PARAM
+        self.dim_p = 3                  # compute 2D (2) or 3D (3) distance for pipe growing        //PARAM
+        self.dim_v = 3                  # compute 2D (2) or 3D (3) distance for valve growing       //PARAM
+        self.min_p_p = 60               # minimum number of points to consider a blob as a pipe     //PARAM
+        self.min_p_v = 30 # 40 80 140   # minimum number of points to consider a blob as a valve    //PARAM
 
-        # TODO importar modelos valvulas, convertirlos a o3d pointclouds, calcular fpfh y meterlos en una lista
-
+        self.model_path = "/home/miguel/Desktop/dgcnn/sem_seg/RUNS/4_256_11_c7/model.ckpt"          # path to model         //PARAM
+        self.path_cls = "/home/miguel/Desktop/dgcnn/sem_seg/RUNS/4_256_11_c7/cls.txt"               # path to clases info   //PARAM
+        self.classes, self.labels, self.label2color = indoor3d_util.get_info_classes(self.path_cls) # get classes info
 
         self.init = False
         self.new_pc = False
 
-        # Set image subscriber
-        pc_sub = message_filters.Subscriber('/stereo_down/scaled_x2/points2_filtered', PointCloud2)
-        #pc_sub = message_filters.Subscriber('/stereo_down/scaled_x2/points2', PointCloud2)
+        # set subscribers
+        pc_sub = message_filters.Subscriber('/stereo_down/scaled_x2/points2_filtered', PointCloud2)     # //PARAM
+        #pc_sub = message_filters.Subscriber('/stereo_down/scaled_x2/points2', PointCloud2)             # //PARAM
         info_sub = message_filters.Subscriber('/stereo_down/left/camera_info', CameraInfo)
         ts_image = message_filters.TimeSynchronizer([pc_sub, info_sub], 10)
         ts_image.registerCallback(self.cb_pc)
 
-        # Set class image publisher
+        # Set class image publishers
         self.pub_pc_base = rospy.Publisher("/stereo_down/scaled_x2/points2_base", PointCloud2, queue_size=4)
         self.pub_pc_seg = rospy.Publisher("/stereo_down/scaled_x2/points2_seg", PointCloud2, queue_size=4)
         self.pub_pc_inst = rospy.Publisher("/stereo_down/scaled_x2/points2_inst", PointCloud2, queue_size=4)
 
         # Set classification timer
-        rospy.Timer(rospy.Duration(self.period), self.run)
+        rospy.Timer(rospy.Duration(self.period), self.run)  # TODO TRY TO DELETE THIS
 
         # CvBridge for image conversion
-        self.bridge = CvBridge()
-
+        self.bridge = CvBridge()    # TODO TRY TO DELETE THIS
 
     def cb_pc(self, pc, info):
         self.pc = pc
@@ -119,13 +113,11 @@ class Pointcloud_Seg:
             pointclouds_pl, labels_pl = placeholder_inputs(self.batch_size, self.points_sub)
             is_training_pl = tf.placeholder(tf.bool, shape=())
 
-            # simple model
             pred = get_model(pointclouds_pl, is_training_pl)
             loss = get_loss(pred, labels_pl)
             pred_softmax = tf.nn.softmax(pred)
-    
-            # Add ops to save and restore all the variables.
-            saver = tf.train.Saver()
+
+            saver = tf.train.Saver() # Add ops to save and restore all the variables.
             
         # Create a session
         config = tf.ConfigProto()
@@ -145,12 +137,12 @@ class Pointcloud_Seg:
             'loss': loss}
 
     def run(self,_):
-        rospy.loginfo('[%s]: Entro', self.name)	
+        rospy.loginfo('[%s]: Running', self.name)	
         t0 = rospy.Time.now()
 
         # New pc available
         if not self.new_pc:
-            rospy.loginfo('[%s]: Not new', self.name)	
+            rospy.loginfo('[%s]: No new pointcloud', self.name)	
             return
         self.new_pc = False
 
@@ -165,23 +157,17 @@ class Pointcloud_Seg:
             return
 
         # Set model
-        if not self.init: 
+        if not self.init:     # TODO TRY TO MOVE SET_MODEL INTO __INIT__
             self.set_model()
             self.init = True
 
         pc_np = self.pc2array(pc)
-        if pc_np.shape[0] < 2000:
-            print("not enough input points")
+        if pc_np.shape[0] < 2000:               # return if points < thr   //PARAM
+            rospy.loginfo('[%s]: Not enough input points', self.name)
             return
 
-        pc_np[:, 2] *= -1  # flip Z axis
-        pc_proj = pc_np.copy()
-
-        # reduce pointcloud to desired number of points, IF PROJ TO HIGHER POINTS NOT NEEDED, THIS CAN GO INTO PC2ARRAY()
-        if self.desired_points != 0:
-            if pc_np.shape[0] > self.desired_points:
-                idx_sub = np.random.choice(pc_np.shape[0], self.desired_points, replace=False)
-                pc_np = pc_np[idx_sub, 0:6]
+        pc_np[:, 2] *= -1  # flip Z axis        # //PARAM
+        #pc_np[:, 1] *= -1  # flip Y axis       # //PARAM
 
         xyz_min = np.amin(pc_np, axis=0)[0:3]   # get pointcloud mins
         pc_np[:, 0:3] -= xyz_min                # move pointcloud to origin
@@ -189,10 +175,11 @@ class Pointcloud_Seg:
 
         t1 = rospy.Time.now()
 
+        # divide data into blocks of size "block" with an stride "stride", in each block select random "points_sub" points
         data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized_parsed(pc_np,  xyz_max, self.points_sub, block_size=self.block_sub, stride=self.stride_sub, random_sample=False, sample_num=None, sample_aug=1) # subsample PC for evaluation
 
-        if data_sub.size == 0:
-            print("no data sub")
+        if data_sub.size == 0:      # return if room2blocks_plus_normalized_parsed has deleted all blocks
+            rospy.loginfo('[%s]: No data after block-stride', self.name)
             return
 
         t2 = rospy.Time.now()
@@ -200,92 +187,99 @@ class Pointcloud_Seg:
         with tf.Graph().as_default():
             pred_sub = self.evaluate(data_sub, label_sub, xyz_max)  # evaluate PC
 
-        if pred_sub.size == 0:
-            print("no pred sub")
+        if pred_sub.size == 0:      # return if no prediction
+            rospy.loginfo('[%s]: No prediction', self.name)
             return
 
-        pred_sub = np.unique(pred_sub, axis=0) # delete duplicates from room2blocks
+        pred_sub = np.unique(pred_sub, axis=0)  # delete duplicates from room2blocks (if points in block < points_sub, it duplicates them)
 
-        pred_sub[:, 0:3] += xyz_min
+        pred_sub[:, 0:3] += xyz_min             # recover original position
 
         t3 = rospy.Time.now()
 
-        pc_np_base = pred_sub.copy()
-        pc_np_base = np.delete(pc_np_base,6,1) # delete class prediction
+        pc_np_base = pred_sub.copy()            # for print only
+        pc_np_base = np.delete(pc_np_base,6,1)  # delete class prediction
 
-        if self.points_sub != 128:                  # if subsampling
-            down = 128/self.points_sub    
+        # downsample prediction to 128 if its not already on 128
+        if self.points_sub != 128:                                             # //PARAM
+            down = 128/self.points_sub                                         # //PARAM
             n_idx_pred_sub_down = int(pred_sub.shape[0] * down)  
             idx_pred_sub_down = np.random.choice(pred_sub.shape[0], n_idx_pred_sub_down, replace=False)
-            pred_sub = pred_sub[idx_pred_sub_down, 0:7]     # downsample prediciton
+            pred_sub = pred_sub[idx_pred_sub_down, 0:7] 
         
-        # get instances ref
-        pred_sub_pipe = pred_sub[pred_sub[:,6] == [self.labels["pipe"]]]       # get data label pipe
-        pred_sub_valve = pred_sub[pred_sub[:,6] == [self.labels["valve"]]]     # get data label pipe
+        pred_sub_pipe = pred_sub[pred_sub[:,6] == [self.labels["pipe"]]]       # get points predicted as pipe
+        pred_sub_valve = pred_sub[pred_sub[:,6] == [self.labels["valve"]]]     # get points predicted as valve
 
-        #instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances_o3d(pred_sub_valve, self.dim_v, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
+        # get valve instances
         instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim_v, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
+        #instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances_o3d(pred_sub_valve, self.dim_v, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
 
-
-        #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_proj) # pc_np_base NO SE PROYECTA, FASTIDIA MATCHING CON PUTNOS DEL SUELO
+        # project valve isntances, removed because produced errors on valve matching due to the points gathered @ the floor
+        #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_proj) # pc_np_base 
 
         t31 = rospy.Time.now()
 
+        # get valve information
         info_valves_list = list()
-        for i, inst in enumerate(instances_ref_valve_list):
-
-            xyz_central = np.mean(inst, axis=0)[0:3]
-            inst[:, 0:3] -= xyz_central                # move instance to origin
+        for i, inst in enumerate(instances_ref_valve_list): # for each valve instance
+            # transform instance to o3d pointcloud
+            xyz_central = np.mean(inst, axis=0)[0:3]    # get isntance center
+            inst[:, 0:3] -= xyz_central                 # move center to origin
             inst_o3d = o3d.geometry.PointCloud()
             inst_o3d.points = o3d.utility.Vector3dVector(inst[:,0:3])
             inst_o3d.colors = o3d.utility.Vector3dVector(inst[:,3:6])
-            inst_o3d.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
-            inst_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
-            inst[:, 0:3] += xyz_central                # move instance to original position
-            info_valve = get_info.get_info(inst_o3d, self.targets_list, method="matching")
-            max_fitness =  max(info_valve) 
-            max_idx = info_valve.index(max_fitness)
-            info_valves_list.append([xyz_central, max_fitness, max_idx])
+            inst_o3d.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15)) # compute normal
+            inst_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))                   # align normals
+            inst[:, 0:3] += xyz_central                                                                          # recover original position
 
-        descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[1][0] < 0.35] 
+            info_valve = get_info.get_info(inst_o3d, self.targets_list, method="matching")   # get valve instance info list([fitness1, rotation1],[fitness2, rotation2], ...)  len = len(targets_list)
+            max_info =  max(info_valve)                                                      # the max() function compares the first element of each info_list element, which is fitness)
+            max_idx = info_valve.index(max_info)                                             # idx of best valve match
+            info_valves_list.append([xyz_central, max_info, max_idx])                        # append valve instance info
 
+        # based on valve fitness, delete it and return stolen points to pipe prediction
+        descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[1][0] < 0.35]  # if max fitnes < thr  //PARAM
         for i in descart_valves_list:
             print("Valve descarted")
-            descarted_points = np.vstack(instances_ref_valve_list[i])
-            stolen_idx = list(np.vstack(stolen_list[i])[:,0].astype(int))
-            stolen_cls = np.vstack(stolen_list[i])[:,1].astype(int)
-            stolen_cls = stolen_cls.reshape(stolen_cls.shape[0],1)
-            if len(stolen_idx)>0:
-                stolen_points = descarted_points[stolen_idx, :-2]
-                stolen_points = np.concatenate((stolen_points,stolen_cls),axis=1)
-                pred_sub_pipe_ref = np.concatenate((pred_sub_pipe_ref,stolen_points),axis=0)
-
-        for index in sorted(descart_valves_list, reverse=True):
-            del instances_ref_valve_list[index]
+            descarted_points = np.vstack(instances_ref_valve_list[i])                           # notate points to discard
+            stolen_idx = list(np.vstack(stolen_list[i])[:,0].astype(int))                       # get stolen idx
+            stolen_cls = np.vstack(stolen_list[i])[:,1].astype(int)                             # get stolen class
+            stolen_cls = stolen_cls.reshape(stolen_cls.shape[0],1)                              # reshape stolen class
+            if len(stolen_idx)>0:                                                               # if there were stolen points
+                stolen_points = descarted_points[stolen_idx, :-2]                               # recover stolen points
+                stolen_points = np.concatenate((stolen_points,stolen_cls),axis=1)               # concatenate stolen points and stolen class
+                pred_sub_pipe_ref = np.concatenate((pred_sub_pipe_ref,stolen_points),axis=0)    # add points and class pipe prediction points
+        for index in sorted(descart_valves_list, reverse=True):                                 # delete discarted valve info                                                                             
             del info_valves_list[index]
+            del instances_ref_valve_list[index]     # for print only  
 
+        # print info valves
         print("INFO VALVES:")
         for i, inst in enumerate(info_valves_list):
             print(inst)
         print(" ")
+
         # TODO GESTIONAR ORIENTACION VALVULAS A APRTIR DE ANGULO?
         
         t32 = rospy.Time.now()
 
+        # get pipe instances
         instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim_p, self.rad_p, self.min_p_p)
         #instances_ref_pipe_list, _, _  = get_instances.get_instances_o3d(pred_sub_pipe_ref, self.dim_p, self.rad_p, self.min_p_p)
 
         t33 = rospy.Time.now()
 
-
         info_pipes_list = list()
-        for i, inst in enumerate(instances_ref_pipe_list):
+        for i, inst in enumerate(instances_ref_pipe_list): # for each pipe instance
+            # transform instance to o3d pointcloud
             inst_o3d = o3d.geometry.PointCloud()
             inst_o3d.points = o3d.utility.Vector3dVector(inst[:,0:3])
             inst_o3d.colors = o3d.utility.Vector3dVector(inst[:,3:6]/255)
-            info_pipe = get_info.get_info(inst_o3d, models=0, method="skeleton")
+
+            info_pipe = get_info.get_info(inst_o3d, models=0, method="skeleton") # get pipe instance info list( list( list(chain1, start1, end1, elbow_list1, vector_chain_list1), ...), list(connexions_points)) 
             info_pipes_list.append(info_pipe)
-        
+
+        # print info pipes
         print("INFO PIPES:")
         for i, inst in enumerate(info_pipes_list):
             print("info instance " + str(i))
@@ -296,15 +290,16 @@ class Pointcloud_Seg:
             for con in inst[1]:
                 print(con)
         print(" ")
+
         # TODO PASAR PARAMETROS
         # TODO UNIR PIPES QUE ESTEN CERCA Y SU VECTOR SEA PARECIDO
         # TODO QUE LAS VALVULAS QUE ESTAN CONECTADAS A 1 O 2 TUBERIAS COJAN LA MEAN DE SUS VECTORES COMO SU ORIENTACION
         # TODO merge info_valves and info_pipes into info
-
         # TODO publish info
 
         t4 = rospy.Time.now()
-        # Publish
+
+        # publishers
 
         i = len(instances_ref_valve_list)
 
@@ -324,9 +319,8 @@ class Pointcloud_Seg:
             instances_ref = None
 
         if instances_ref is None: # if instances were not found
-            print("no instances found")
+            rospy.loginfo('[%s]: No instances found', self.name)	
             return
-
 
         for i in range(pred_sub.shape[0]):
             color = self.label2color[pred_sub[i,6]]
@@ -358,7 +352,8 @@ class Pointcloud_Seg:
         time_publish = t5-t4
         time_total = t5-t0
 
-        print("INFO TIMES:")
+        # print time info
+        rospy.loginfo('[%s]: INFO TIMES:', self.name)	
         rospy.loginfo('[%s]: Pc processing took %.2f seconds. Split into:', self.name, time_total.secs + time_total.nsecs*1e-9)
         rospy.loginfo('[%s]: Reading ---- %.2f seconds (%i%%)', self.name, time_read.secs + time_read.nsecs*1e-9, (time_read/time_total)*100)
         rospy.loginfo('[%s]: Blocks ----- %.2f seconds (%i%%)', self.name, time_blocks.secs + time_blocks.nsecs*1e-9, (time_blocks/time_total)*100)
@@ -367,6 +362,7 @@ class Pointcloud_Seg:
         rospy.loginfo('[%s]: Valve info - %.2f seconds (%i%%)', self.name, time_valve_info.secs + time_valve_info.nsecs*1e-9, (time_valve_info/time_total)*100)
         rospy.loginfo('[%s]: Pipe info - %.2f seconds (%i%%)', self.name, time_pipe_info.secs + time_pipe_info.nsecs*1e-9, (time_pipe_info/time_total)*100)
         rospy.loginfo('[%s]: Publish ---- %.2f seconds (%i%%)', self.name, time_publish.secs + time_publish.nsecs*1e-9, (time_publish/time_total)*100)
+
         print(" ")
         print(" ")
         print("--------------------------------------------------------------------------------------------------")
@@ -374,12 +370,17 @@ class Pointcloud_Seg:
         print(" ")
         print(" ")
 
-    
+
     def pc2array(self, ros_pc):
-        gen = pc2.read_points(ros_pc, skip_nans=True)
-        pc_np = np.array(list(gen))
+        gen = pc2.read_points(ros_pc, skip_nans=True)   # ROS pointcloud into generator
+        pc_np = np.array(list(gen))                     # generator to list to numpy
 
-        if pc_np.size > 0:
+        if pc_np.size > 0:                              # if there are points
+
+            if self.desired_points != 0:                # downsample pointcloud to desired points
+                if pc_np.shape[0] > self.desired_points:
+                    idx_sub = np.random.choice(pc_np.shape[0], self.desired_points, replace=False)
+                    pc_np = pc_np[idx_sub, 0:6]
 
             rgb_list = list()
 
@@ -387,7 +388,7 @@ class Pointcloud_Seg:
                 # cast float32 to int so that bitwise operations are possible
                 s = struct.pack('>f' ,rgb)
                 i = struct.unpack('>l',s)[0]
-                # you can get back the float value by the inverse operations
+                # get back the float value by the inverse operations
                 pack = ctypes.c_uint32(i).value
                 r = (pack & 0x00FF0000)>> 16
                 g = (pack & 0x0000FF00)>> 8
@@ -396,13 +397,13 @@ class Pointcloud_Seg:
                 rgb_list.append(rgb_np)
 
             rgb = np.vstack(rgb_list)
-
             pc_np = np.delete(pc_np, 3, 1) 
             pc_np = np.concatenate((pc_np, rgb), axis=1)
+
         return pc_np
 
-    def array2pc(self, header, array):
 
+    def array2pc(self, header, array):
 
         fields =   [PointField('x', 0, PointField.FLOAT32, 1),
                     PointField('y', 4, PointField.FLOAT32, 1),
