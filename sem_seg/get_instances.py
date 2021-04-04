@@ -63,20 +63,20 @@ def get_distance(p1,p2, dim):
 def grow(data, points, min_dist, dim):
 
     new_idx = list()
-    for n, p in enumerate(points):
+    for n, p in enumerate(points):              # for each point to grow from
 
         #progress(n, len(points), status='growing')
 
         p1 = p[0:3]
         cls1 = p[6]
-        for j, point2 in enumerate(data):
+        for j, point2 in enumerate(data):       # for each point of data to grow over
             p2 = data[j,0:3]
             cls2 = data[j, 6]
 
-            if cls1 == cls2:
-                d = get_distance(p1,p2,dim)
-                if d < min_dist:
-                    new_idx.append(j)
+            if cls1 == cls2:                    # if same class
+                d = get_distance(p1,p2,dim)     # get distance
+                if d < min_dist:                # if dist < thr 
+                    new_idx.append(j)           # add idx
 
     new_idx = list(set(new_idx))
 
@@ -183,7 +183,7 @@ def get_instances(data_label, dim, rad, min_points, ref=False, ref_data=0, ref_r
         inst = actual_inst                                            # init inst
         data_label = np.delete(data_label, actual_idx, axis=0)        # delete  points
         while actual_idx:                                             # while idx exists
-            actual_idx = grow(data_label, actual_inst, rad, dim)  # idx grow
+            actual_idx = grow(data_label, actual_inst, rad, dim)      # idx grow
             actual_inst = data_label[actual_idx]                      # get new actual inst
             inst = np.vstack([inst, actual_inst])                     # append to inst
             data_label = np.delete(data_label, actual_idx, axis=0)    # delete  points
@@ -313,10 +313,6 @@ if __name__ == "__main__":
         else:
             gt_inst = None
 
-
-
-
-
         pred_inst_valve_list, _, _  = get_instances(pred_valve, dim_v, rad_v, min_points)
         pred_inst_pipe_list, _, _  = get_instances(pred_pipe, dim_p, rad_p, min_points)
         i = len(pred_inst_valve_list)
@@ -335,8 +331,6 @@ if __name__ == "__main__":
             pred_inst = pred_inst_valve
         else:
             pred_inst = None
-
-
 
         pred_pipe2 = np.copy(pred_pipe)
 

@@ -46,6 +46,8 @@ class Pointcloud_Seg:
         for file_name in natsorted(os.listdir(self.targets_path)):
             target_path = os.path.join(self.targets_path, file_name)
             target = get_info.read_ply(target_path, "model")
+            xyz_central = np.mean(target, axis=0)[0:3]
+            target[:, 0:3] -= xyz_central  
             target_o3d = o3d.geometry.PointCloud()
             target_o3d.points = o3d.utility.Vector3dVector(target[:,0:3])
             target_o3d.colors = o3d.utility.Vector3dVector(target[:,3:6])
@@ -211,7 +213,7 @@ class Pointcloud_Seg:
         pred_sub_valve = pred_sub[pred_sub[:,6] == [self.labels["valve"]]]     # get points predicted as valve
 
         # get valve instances
-        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim_v, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
+        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, self.dim_v, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)    # //PARAM
         #instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances_o3d(pred_sub_valve, self.dim_v, self.rad_v, self.min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
 
         # project valve isntances, removed because produced errors on valve matching due to the points gathered @ the floor
@@ -235,7 +237,12 @@ class Pointcloud_Seg:
             info_valve = get_info.get_info(inst_o3d, self.targets_list, method="matching")   # get valve instance info list([fitness1, rotation1],[fitness2, rotation2], ...)  len = len(targets_list)
             max_info =  max(info_valve)                                                      # the max() function compares the first element of each info_list element, which is fitness)
             max_idx = info_valve.index(max_info)                                             # idx of best valve match
-            info_valves_list.append([xyz_central, max_info, max_idx])                        # append valve instance info
+            
+            rad = math.radians(max_info[1])
+            vector = np.array([math.cos(rad), math.sin(rad)])                               # get valve vector 
+            vector = vector*0.18                                                            # resize vector to valve size //PARAM
+
+            info_valves_list.append([xyz_central, max_info, vector, max_idx])                        # append valve instance info
 
         # based on valve fitness, delete it and return stolen points to pipe prediction
         descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[1][0] < 0.35]  # if max fitnes < thr  //PARAM
@@ -253,13 +260,7 @@ class Pointcloud_Seg:
             del info_valves_list[index]
             del instances_ref_valve_list[index]     # for print only  
 
-        # print info valves
-        print("INFO VALVES:")
-        for i, inst in enumerate(info_valves_list):
-            print(inst)
-        print(" ")
 
-        # TODO GESTIONAR ORIENTACION VALVULAS A APRTIR DE ANGULO?
         
         t32 = rospy.Time.now()
 
@@ -270,6 +271,9 @@ class Pointcloud_Seg:
         t33 = rospy.Time.now()
 
         info_pipes_list = list()
+        info_connexions_list = list()
+        k_pipe = 0
+
         for i, inst in enumerate(instances_ref_pipe_list): # for each pipe instance
             # transform instance to o3d pointcloud
             inst_o3d = o3d.geometry.PointCloud()
@@ -277,27 +281,43 @@ class Pointcloud_Seg:
             inst_o3d.colors = o3d.utility.Vector3dVector(inst[:,3:6]/255)
 
             info_pipe = get_info.get_info(inst_o3d, models=0, method="skeleton") # get pipe instance info list( list( list(chain1, start1, end1, elbow_list1, vector_chain_list1), ...), list(connexions_points)) 
-            info_pipes_list.append(info_pipe)
+            
+            for j, pipe_info in enumerate(info_pipe[0]):                         # stack pipes info
+                info_pipes_list.append(pipe_info)
 
-        # print info pipes
-        print("INFO PIPES:")
-        for i, inst in enumerate(info_pipes_list):
-            print("info instance " + str(i))
-            print("-- chains:")
-            for pipe in inst[0]:
-                print(pipe)
-            print("-- conexions:")
-            for con in inst[1]:
-                print(con)
-        print(" ")
+            for j, connexion_info in enumerate(info_pipe[1]):                    # stack conenexions info
+                connexion_info[1] = [x+k_pipe for x in connexion_info[1]]
+                info_connexions_list.append(connexion_info)
 
-        # TODO PASAR PARAMETROS
-        # TODO UNIR PIPES QUE ESTEN CERCA Y SU VECTOR SEA PARECIDO
+            k_pipe += len(info_pipe[0])                                          # update actual pipe idx
+
+
+        #info_pipes_list2 = self.unify_pipes(info_pipes_list, info_connexions_list)     # TODO UNIR PIPES QUE ESTEN CERCA Y SU VECTOR SEA PARECIDO
         # TODO QUE LAS VALVULAS QUE ESTAN CONECTADAS A 1 O 2 TUBERIAS COJAN LA MEAN DE SUS VECTORES COMO SU ORIENTACION
-        # TODO merge info_valves and info_pipes into info
-        # TODO publish info
+        # TODO O HACER QUE LAS VALVULAS QUE NO TOQUEN ALMENOS UN START O END DE TUBERIA SE BORREN
+        #info_valves_list2 = self.refine_valves(info_valves_list, info_pipes_list)
+
+        info = [info_pipes_list, info_connexions_list, info_valves_list]         # TODO publish info
 
         t4 = rospy.Time.now()
+
+        # print info
+
+        print(" ")
+        print("INFO VALVES:")
+        for valve in info_valves_list:
+            print(valve)
+        print(" ")
+
+        print("INFO PIPES:")
+        for pipe in info_pipes_list:
+            print(pipe)
+        print(" ")
+
+        print("INFO CONNEXIONS:")
+        for connexion in info_connexions_list:
+            print(connexion)
+        print(" ")
 
         # publishers
 
@@ -346,7 +366,7 @@ class Pointcloud_Seg:
         time_read = t1-t0
         time_blocks = t2-t1
         time_inferference = t3-t2
-        time_instaces = t33-t32+t31-t3
+        time_instaces = t31-t3 + t33-t32
         time_valve_info = t32-t31
         time_pipe_info = t4-t33
         time_publish = t5-t4
@@ -467,6 +487,119 @@ class Pointcloud_Seg:
         else:
             pred_sub = np.array([])
         return pred_sub
+    
+    def unify_pipes(self, info_pipes_list, info_connexions_list):
+        unified_list = list()
+        for i, pipe1 in enumerate(info_pipes_list):
+            start1 = pipe1[1]
+            end1 = pipe1[2]
+            for j, pipe2 in enumerate(info_pipes_list):
+                if i != j:
+                    start2 = pipe2[1]
+                    end2 = pipe2[2]
+
+                    ds1s2 = self.get_distance(start1, start2, 3)
+                    ds1e2 = self.get_distance(start1, end2, 3)
+                    de1s2 = self.get_distance(end1, start2, 3)
+                    de1e2 = self.get_distance(end1, end2, 3)
+
+                    closer = min([ds1s2, ds1e2, de1s2, de1e2])
+                    
+                    if closer < 0.1:
+
+                        closer_idx = [ds1s2, ds1e2, de1s2, de1e2].index(min([ds1s2, ds1e2, de1s2, de1e2]))
+                        connexion_near = False
+
+                        if closer_idx == 0:
+                            for connexion_info in info_connexions_list:
+                                connexion = connexion_info[0]
+                                d1 = self.get_distance(start1, connexion, 3)
+                                d2 = self.get_distance(start2, connexion, 3)
+                                if d1 < 0.15 or d2 < 0.15:
+                                    connexion_near = True
+
+                        elif closer_idx ==1:
+                            for connexion_info in info_connexions_list:
+                                connexion = connexion_info[0]
+                                d1 = self.get_distance(start1, connexion, 3)
+                                d2 = self.get_distance(end2, connexion, 3)
+                                if d1 < 0.15 or d2 < 0.15:
+                                    connexion_near = True
+
+                        elif closer_idx ==2:
+                            for connexion_info in info_connexions_list:
+                                connexion = connexion_info[0]
+                                d1 = self.get_distance(end1, connexion, 3)
+                                d2 = self.get_distance(start2, connexion, 3)
+                                if d1 < 0.15 or d2 < 0.15:
+                                    connexion_near = True
+
+                        else:
+                            for connexion_info in info_connexions_list:
+                                connexion = connexion_info[0]
+                                d1 = self.get_distance(end1, connexion, 3)
+                                d2 = self.get_distance(end2, connexion, 3)
+                                if d1 < 0.15 or d2 < 0.15:
+                                    connexion_near = True
+                        
+                        if connexion_near == False:
+
+
+                            if closer_idx == 0:
+                                vector1 = pipe1[4][0]
+                                vector2 = pipe2[4][0]
+                            elif closer_idx ==1:
+                                vector1 = pipe1[4][0]
+                                vector2 = pipe2[4][-1]
+                            elif closer_idx ==2:
+                                vector1 = pipe1[4][-1]
+                                vector2 = pipe2[4][0]
+                            else:
+                                vector1 = pipe1[4][-1]
+                                vector2 = pipe2[4][-1]
+
+                            angle = self.angle_between_vectors(vector1, vector2)
+                            if (angle<10 and angle>350) or (angle<190 and angle>170):
+
+                                points1 = pipe1[0]
+                                points2 = pipe2[0]
+
+                                if closer_idx == 0:
+                                    points2 = np.flipud(points2)
+                                    new_points = np.vstack((points2, points1))
+                                elif closer_idx ==1:
+                                    new_points = np.vstack((points2, points1))
+                                elif closer_idx ==2:
+                                    new_points = np.vstack((points1, points2))
+                                else:
+                                    points2 = np.flipud(points2)
+                                    new_points = np.vstack((points1, points2))
+
+                                new_start = new_points[0]                       # TODO si se quisiera puto intermedio se tendraiq ue calcular con la funcion
+                                new_end = new_points[-1]
+
+                                # TODO VOLVER A CALCULAR ELBOWS Y VECTORS
+
+                                new_pipe = [new_points, new_start, new_end, new_elbow_list, new_vector_list ]
+
+                                # TODO GESTIONAR BORRAR PIPES INVOLUCRADAS, AÑADIR ESTA NUEVA PIPE Y QUE TODO ESTE EN UN WHILE HASTA QUE NO SE JUNTE NINGUNA PIPE, BREAK DE LOS 2 FORS ...
+
+        return 1
+
+
+    def get_distance(self, p1,p2, dim):
+        if dim == 2:
+            d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2))
+        if dim == 3:
+            d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2)+((p2[2]-p1[2])**2))
+        return d
+
+    def angle_between_vectors(self, v1, v2):
+        v1_u = v1/np.linalg.norm(v1)
+        v2_u = v2/np.linalg.norm(v2)
+        angle = np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+        return np.degrees(angle)
+
 
 if __name__ == '__main__':
     try:
