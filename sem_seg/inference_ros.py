@@ -74,9 +74,9 @@ class Pointcloud_Seg:
         13: [255, 100, 0]
         }
         self.rad_p = 0.04               # max distance for pipe growing                             //PARAM
-        self.rad_v = 0.06               # max distance for valve growing                            //PARAM
+        self.rad_v = 0.04               # max distance for valve growing                            //PARAM
         self.dim_p = 3                  # compute 2D (2) or 3D (3) distance for pipe growing        //PARAM
-        self.dim_v = 3                  # compute 2D (2) or 3D (3) distance for valve growing       //PARAM
+        self.dim_v = 2                  # compute 2D (2) or 3D (3) distance for valve growing       //PARAM
         self.min_p_p = 60               # minimum number of points to consider a blob as a pipe     //PARAM
         self.min_p_v = 30 # 40 80 140   # minimum number of points to consider a blob as a valve    //PARAM
 
@@ -99,11 +99,8 @@ class Pointcloud_Seg:
         self.pub_pc_seg = rospy.Publisher("/stereo_down/scaled_x2/points2_seg", PointCloud2, queue_size=4)
         self.pub_pc_inst = rospy.Publisher("/stereo_down/scaled_x2/points2_inst", PointCloud2, queue_size=4)
 
-        # Set classification timer
-        rospy.Timer(rospy.Duration(self.period), self.run)  # TODO TRY TO DELETE THIS
-
-        # CvBridge for image conversion
-        self.bridge = CvBridge()    # TODO TRY TO DELETE THIS
+        # Set segmentation timer
+        rospy.Timer(rospy.Duration(self.period), self.run)
 
     def cb_pc(self, pc, info):
         self.pc = pc
@@ -159,7 +156,7 @@ class Pointcloud_Seg:
             return
 
         # Set model
-        if not self.init:     # TODO TRY TO MOVE SET_MODEL INTO __INIT__
+        if not self.init:
             self.set_model()
             self.init = True
 
@@ -239,13 +236,13 @@ class Pointcloud_Seg:
             max_idx = info_valve.index(max_info)                                             # idx of best valve match
             
             rad = math.radians(max_info[1])
-            vector = np.array([math.cos(rad), math.sin(rad)])                               # get valve vector 
+            vector = np.array([math.cos(rad), math.sin(rad)])                               # get valve unit vector 
             vector = vector*0.18                                                            # resize vector to valve size //PARAM
 
             info_valves_list.append([xyz_central, max_info, vector, max_idx])                        # append valve instance info
 
         # based on valve fitness, delete it and return stolen points to pipe prediction
-        descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[1][0] < 0.35]  # if max fitnes < thr  //PARAM
+        descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[1][0] < 0.4]     # if max fitnes < thr  //PARAM
         for i in descart_valves_list:
             print("Valve descarted")
             descarted_points = np.vstack(instances_ref_valve_list[i])                           # notate points to discard
@@ -488,6 +485,7 @@ class Pointcloud_Seg:
             pred_sub = np.array([])
         return pred_sub
     
+    '''
     def unify_pipes(self, info_pipes_list, info_connexions_list):
         unified_list = list()
         for i, pipe1 in enumerate(info_pipes_list):
@@ -585,7 +583,7 @@ class Pointcloud_Seg:
                                 # TODO GESTIONAR BORRAR PIPES INVOLUCRADAS, AÑADIR ESTA NUEVA PIPE Y QUE TODO ESTE EN UN WHILE HASTA QUE NO SE JUNTE NINGUNA PIPE, BREAK DE LOS 2 FORS ...
 
         return 1
-
+    '''
 
     def get_distance(self, p1,p2, dim):
         if dim == 2:

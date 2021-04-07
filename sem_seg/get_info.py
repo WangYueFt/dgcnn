@@ -106,7 +106,7 @@ def match(source, target):
     threshold = 0.02            # acceptance thr when comparing //PARAM
     matchings = list()
 
-    steps = 16                  # steps on spin 
+    steps = 32                  # steps on spin //PARAM
 
     for i in range(steps): 
         trans = np.eye(4)                                                                               # set transformation amtrix

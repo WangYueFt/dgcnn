@@ -60,7 +60,7 @@ def get_distance(p1,p2, dim):
     return d
 
 
-def grow(data, points, min_dist, dim):
+def grow(data, points, min_dist, dim):          # //PARAM
 
     new_idx = list()
     for n, p in enumerate(points):              # for each point to grow from
@@ -135,7 +135,7 @@ def write_ply(data, path_out):
     f.close()
 
 
-def refine_instances(instances, ref_data, rad_ref = 0.1):
+def refine_instances(instances, ref_data, rad_ref = 0.1):           # //PARAM
 
     stolen_list = list()
 
@@ -170,7 +170,7 @@ def refine_instances(instances, ref_data, rad_ref = 0.1):
     return instances, ref_data, stolen_list
 
 
-def get_instances(data_label, dim, rad, min_points, ref=False, ref_data=0, ref_rad=0.1):
+def get_instances(data_label, dim, rad, min_points, ref=False, ref_data=0, ref_rad=0.1):        # //PARAM
 
     n_inst = 1
     stolen_list = list()
