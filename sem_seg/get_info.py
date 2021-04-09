@@ -46,6 +46,14 @@ def angle_between_vectors(v1, v2):
     return np.degrees(angle)
 
 
+def get_distance(p1, p2, dim):
+    if dim == 2:
+        d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2))
+    if dim == 3:
+        d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2)+((p2[2]-p1[2])**2))
+    return d
+
+
 def numpy_unique(arr):
     _, index = np.unique(arr, axis=0,return_index=True)
     arr_unique = arr[np.sort(index)]
@@ -367,6 +375,19 @@ def get_info_connexions(connexions, chains):
     for i in sorted(chain_del_list, reverse=True):      # delete marked chains
         del chains[i]
 
+
+    # recalculate enar chains to get new index
+    connexions_info2 = list()
+    for connexion_info in connexions_info:
+        connexion = connexion_info[0]
+        near_chains_list = list()
+        for i, chain in enumerate(chains):
+            d_to_start = distance.cityblock(connexion, chain[0])
+            d_to_end = distance.cityblock(connexion, chain[-1])
+            if d_to_start <= 3 or d_to_end <= 3:                    # //PARAM (3 to reach further diagonally)
+                near_chains_list.append(i)                        
+        connexions_info2.append([connexion, near_chains_list])
+
     return connexions_info, chains
 
 
@@ -517,6 +538,8 @@ def get_info_skeleton(instance):
         chains_points.append(chain_point_np)
 
     # find elbows
+
+    
     info_chains = list()
     for i, chain in enumerate(chains_points):                           # for each chain
         info_chain = list()
@@ -525,38 +548,10 @@ def get_info_skeleton(instance):
         #chain_o3d.points = o3d.utility.Vector3dVector(chain[:,0:3])
         #print_o3d(chain_o3d)
 
-        vector_list = list()                                            
-        for j in range(len(chain)-1):                                   # calculate vectors between chain links
-            vector = chain[j+1] - chain[j]
-            vector_list.append(vector)
-    
         look_ahead = 14                                                 # look ahead distance to find changes in direction (elbows) in chain points //PARAM
         elbow_size = 9                                                  # elbow size in chain points   //PARAM
         angle_elbow = 60                                                # angle thr to consider an elow   //PARAM   
-        angle_list = list()
-        elbow_idx_list = list()
-        if chain.shape[0] > look_ahead*3:                               # if chain is considerably long (X times look ahead points)   //PARAM
-            for i in range(look_ahead, chain.shape[0]-look_ahead):      # from chain start to finish (with a offset of look_ahead points in both ends)
-                vector1 = chain[i] - chain[i-look_ahead]                # vector from actual_point-look_ahead to actual_point
-                vector2 = chain[i+look_ahead] - chain[i]                # vector from actual point to actual_point+look_ahead
-                angle = angle_between_vectors(vector1, vector2)         # calculate angle between vectors
-                angle_list.append(angle)
-
-            while 1:                                                    # always
-                max_angle = max(angle_list)                             # get position of max angle divergence between its two vectors
-                if max_angle > angle_elbow:                             # if angle > thr
-                    max_index = angle_list.index(max_angle)             # get index
-                    elbow_idx_list.append(max_index+look_ahead)         # append elbow idx
-
-                    start = max(max_index-elbow_size,0)                 # get elbow starting points from -elbow_size param  
-                    end = min(max_index+elbow_size, len(angle_list))    # get elbow ending points from +elbow_size param  
-
-                    for i in range(start,end):
-                        angle_list[i] = 0                               # set to zero angles in positions ocupied by detected elbow, no other elbow can be here
-
-                else:                                                   # if no remaining angle > thr                                            
-                    elbow_idx_list.sort()                               # sort elbow idx list                    
-                    break
+        elbow_idx_list = get_elbows(chain, look_ahead, elbow_size, angle_elbow)
 
         elbow_list = list()
         for i in elbow_idx_list:                                        # append elbow points
@@ -579,6 +574,11 @@ def get_info_skeleton(instance):
             vector_chain_list.append(vector_chain)
 
         # get % points
+        vector_list = list()                                            
+        for j in range(len(chain)-1):                                   # calculate vectors between chain links
+            vector = chain[j+1] - chain[j]
+            vector_list.append(vector)
+
         start_idx = get_position_idx(vector_list, 0)                        
         start = chain[start_idx]
         #mid_idx = get_position_idx(vector_list, 50)
@@ -586,13 +586,257 @@ def get_info_skeleton(instance):
         end_idx = get_position_idx(vector_list, 100)
         end = chain[end_idx]
 
-        #info_chain = [chain, start, end, elbow_list, vector_chain_list]     # //PARAM return chain or not
-        info_chain = [start, end, elbow_list, vector_chain_list]           # //PARAM return chain or not
+        info_chain = [chain, start, end, elbow_list, vector_chain_list]     # //PARAM return chain or not
+        #info_chain = [start, end, elbow_list, vector_chain_list]           # //PARAM return chain or not
         info_chains.append(info_chain)
     
     info = [info_chains, connexions_points]
 
     return info
+
+
+
+
+
+
+
+
+
+
+
+
+def unify_chains(chains_info, connexions_info):
+
+    print("entering unify")
+    touched = True
+    while touched == True:
+        touched = False
+
+        new_info_chains = list()
+        touched_list = list()
+        seen_list = list()
+        for i, chain1 in enumerate(chains_info):
+            if i not in seen_list:
+                seen_list.append(i)
+                start1 = chain1[1]
+                end1 = chain1[2]
+                for j, chain2 in enumerate(chains_info):
+                    if j not in seen_list:
+                        seen_list.append(j)
+                        if i != j:
+
+                            print("chain " + str(i) + " vs chain " + str(j))
+
+                            start2 = chain2[1]
+                            end2 = chain2[2]
+
+                            ds1s2 = get_distance(start1, start2, 3)
+                            ds1e2 = get_distance(start1, end2, 3)
+                            de1s2 = get_distance(end1, start2, 3)
+                            de1e2 = get_distance(end1, end2, 3)
+
+                            closer = min([ds1s2, ds1e2, de1s2, de1e2])
+                            closer_idx = [ds1s2, ds1e2, de1s2, de1e2].index(min([ds1s2, ds1e2, de1s2, de1e2]))
+
+                            print("closer " + str(closer) + " at " + str(closer_idx))
+                            
+                            if closer < 0.1:
+                                
+                                print("closer enough")
+
+                                connexion_near = False
+
+                                if closer_idx == 0:
+                                    for connexion_info in connexions_info:
+                                        connexion = connexion_info[0]
+                                        d1 = get_distance(start1, connexion, 3)
+                                        d2 = get_distance(start2, connexion, 3)
+                                        if d1 < 0.15 or d2 < 0.15:                                  # //PARAM
+                                            connexion_near = True
+                                    print("d1: " +str(d1) + ", d2: " + str(d2))
+                                    print("connexion near: " + str(connexion_near))
+
+                                elif closer_idx ==1:
+                                    for connexion_info in connexions_info:
+                                        connexion = connexion_info[0]
+                                        d1 = get_distance(start1, connexion, 3)
+                                        d2 = get_distance(end2, connexion, 3)
+                                        if d1 < 0.15 or d2 < 0.15:                                  # //PARAM
+                                            connexion_near = True
+                                    print("d1: " +str(d1) + ", d2: " + str(d2))
+                                    print("connexion near: " + str(connexion_near))
+
+                                elif closer_idx ==2:
+                                    for connexion_info in connexions_info:
+                                        connexion = connexion_info[0]
+                                        d1 = get_distance(end1, connexion, 3)
+                                        d2 = get_distance(start2, connexion, 3)
+                                        if d1 < 0.15 or d2 < 0.15:                                  # //PARAM
+                                            connexion_near = True
+                                    print("d1: " +str(d1) + ", d2: " + str(d2))
+                                    print("connexion near: " + str(connexion_near))
+
+                                else:
+                                    for connexion_info in connexions_info:
+                                        connexion = connexion_info[0]
+                                        d1 = get_distance(end1, connexion, 3)
+                                        d2 = get_distance(end2, connexion, 3)
+                                        if d1 < 0.15 or d2 < 0.15:                                  # //PARAM
+                                            connexion_near = True
+                            
+                                    print("d1: " +str(d1) + ", d2: " + str(d2))
+                                    print("connexion near: " + str(connexion_near))
+
+
+                                if connexion_near == False:
+
+                                    if closer_idx == 0:
+                                        vector1 = chain1[4][0]
+                                        vector2 = chain2[4][0]
+                                    elif closer_idx ==1:
+                                        vector1 = chain1[4][0]
+                                        vector2 = chain2[4][-1]
+                                    elif closer_idx ==2:
+                                        vector1 = chain1[4][-1]
+                                        vector2 = chain2[4][0]
+                                    else:
+                                        vector1 = chain1[4][-1]
+                                        vector2 = chain2[4][-1]
+
+                                    angle = angle_between_vectors(vector1, vector2)
+                                    print("angle between vector: " + str(angle))
+                                    if (angle<10 and angle>350) or (angle<190 and angle>170):        # //PARAM
+                                        
+                                        print("las junto!")
+
+                                        touched = True
+                                        touched_list.append(i)
+                                        touched_list.append(j)
+
+                                        points1 = chain1[0]
+                                        points2 = chain2[0]
+
+                                        if closer_idx == 0:
+                                            points2 = np.flipud(points2)
+                                            new_chain = np.vstack((points2, points1))
+                                        elif closer_idx ==1:
+                                            new_chain = np.vstack((points2, points1))
+                                        elif closer_idx ==2:
+                                            new_chain = np.vstack((points1, points2))
+                                        else:
+                                            points2 = np.flipud(points2)
+                                            new_chain = np.vstack((points1, points2))
+
+
+
+                                        look_ahead = 14                                                 # look ahead distance to find changes in direction (elbows) in chain points //PARAM
+                                        elbow_size = 9                                                  # elbow size in chain points   //PARAM
+                                        angle_elbow = 60                                                # angle thr to consider an elow   //PARAM   
+                                        elbow_idx_list = get_elbows(new_chain, look_ahead, elbow_size, angle_elbow)
+
+                                        new_elbow_list = list()
+                                        for i in elbow_idx_list:                                        # append elbow points
+                                            new_elbow_list.append(new_chain[i])
+
+
+                                        new_vector_chain_list = list()
+                                        if len(elbow_idx_list) == 0:                                        # if chain has no elbows
+                                            vector_chain = new_chain[-1] - new_chain[0]                             # vector from start to finish
+                                            new_vector_chain_list.append(vector_chain)
+                                        else:                                                               # if chain has any elbow
+                                            vector_chain = new_chain[elbow_idx_list[0]-elbow_size] - new_chain[0]   # first vector from start to first_elbow-elbow_size
+                                            new_vector_chain_list.append(vector_chain)
+
+                                            for e in range(len(elbow_idx_list)-1):                                                          # middle elbows
+                                                vector_chain = new_chain[elbow_idx_list[e+1]-elbow_size] - new_chain[elbow_idx_list[e]+elbow_size]  # vector from current_elbow+elbow_size to next_elbow-elbow_size
+                                                new_vector_chain_list.append(vector_chain)
+
+                                            vector_chain = new_chain[-1] - new_chain[elbow_idx_list[-1]+elbow_size] # last vector from last_elbow+elbow_Size to end
+                                            new_vector_chain_list.append(vector_chain)
+
+
+                                        vector_list = list()                                            
+                                        for j in range(len(new_chain)-1):                                   # calculate vectors between chain links
+                                            vector = new_chain[j+1] - new_chain[j]
+                                            vector_list.append(vector)
+
+                                        start_idx = get_position_idx(vector_list, 0)                        
+                                        new_start = new_chain[start_idx]
+                                        #mid_idx = get_position_idx(vector_list, 50)
+                                        #mid = chain[mid_idx]
+                                        end_idx = get_position_idx(vector_list, 100)
+                                        new_end = new_chain[end_idx]
+
+                                        new_chain_info = [new_chain, new_start, new_end, new_elbow_list, new_vector_chain_list]
+                                        new_info_chains.append(new_chain_info)
+
+        for i in sorted(touched_list, reverse=True):      # delete marked chains
+            del chains_info[i]
+
+
+        chains_info = chains_info + new_info_chains
+
+    # recalculate near chains to get new index
+    connexions_info2 = list()
+    for connexion_info in connexions_info:
+        connexion = connexion_info[0]
+        near_chains_list = list()
+        for i, chain_info in enumerate(chains_info):
+            chain = chain_info[0]
+            d_to_start = distance.cityblock(connexion, chain[0])
+            d_to_end = distance.cityblock(connexion, chain[-1])
+            if d_to_start <= 3 or d_to_end <= 3:                    # //PARAM (3 to reach further diagonally)
+                near_chains_list.append(i)                        
+        connexions_info2.append([connexion, near_chains_list])
+  
+    return chains_info, connexions_info2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def get_elbows(chain, look_ahead, elbow_size, angle_elbow):
+
+    angle_list = list()
+    elbow_idx_list = list()
+    if chain.shape[0] > look_ahead*3:                               # if chain is considerably long (X times look ahead points)   //PARAM
+        for i in range(look_ahead, chain.shape[0]-look_ahead):      # from chain start to finish (with a offset of look_ahead points in both ends)
+            vector1 = chain[i] - chain[i-look_ahead]                # vector from actual_point-look_ahead to actual_point
+            vector2 = chain[i+look_ahead] - chain[i]                # vector from actual point to actual_point+look_ahead
+            angle = angle_between_vectors(vector1, vector2)         # calculate angle between vectors
+            angle_list.append(angle)
+
+        while 1:                                                    # always
+            max_angle = max(angle_list)                             # get position of max angle divergence between its two vectors
+            if max_angle > angle_elbow:                             # if angle > thr
+                max_index = angle_list.index(max_angle)             # get index
+                elbow_idx_list.append(max_index+look_ahead)         # append elbow idx
+
+                start = max(max_index-elbow_size,0)                 # get elbow starting points from -elbow_size param  
+                end = min(max_index+elbow_size, len(angle_list))    # get elbow ending points from +elbow_size param  
+
+                for i in range(start,end):
+                    angle_list[i] = 0                               # set to zero angles in positions ocupied by detected elbow, no other elbow can be here
+
+            else:                                                   # if no remaining angle > thr                                            
+                elbow_idx_list.sort()                               # sort elbow idx list                    
+                break
+
+    return elbow_idx_list
+
+
 
 def get_position_idx(vector_list, percentage):
 

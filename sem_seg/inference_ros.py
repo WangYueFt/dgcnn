@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import copy
 import rospy
 import ctypes
 import struct
@@ -289,12 +290,14 @@ class Pointcloud_Seg:
             k_pipe += len(info_pipe[0])                                          # update actual pipe idx
 
 
-        #info_pipes_list2 = self.unify_pipes(info_pipes_list, info_connexions_list)     # TODO UNIR PIPES QUE ESTEN CERCA Y SU VECTOR SEA PARECIDO
+        info_pipes_list_copy = copy.deepcopy(info_pipes_list) 
+
+        info_pipes_list2, info_connexions_list2 = get_info.unify_chains(info_pipes_list_copy, info_connexions_list)     # TODO UNIR PIPES QUE ESTEN CERCA Y SU VECTOR SEA PARECIDO
         # TODO QUE LAS VALVULAS QUE ESTAN CONECTADAS A 1 O 2 TUBERIAS COJAN LA MEAN DE SUS VECTORES COMO SU ORIENTACION
         # TODO O HACER QUE LAS VALVULAS QUE NO TOQUEN ALMENOS UN START O END DE TUBERIA SE BORREN
         #info_valves_list2 = self.refine_valves(info_valves_list, info_pipes_list)
 
-        info = [info_pipes_list, info_connexions_list, info_valves_list]         # TODO publish info
+        info = [info_pipes_list2, info_connexions_list, info_valves_list]         # TODO publish info
 
         t4 = rospy.Time.now()
 
@@ -307,12 +310,24 @@ class Pointcloud_Seg:
         print(" ")
 
         print("INFO PIPES:")
-        for pipe in info_pipes_list:
-            print(pipe)
+        for pipe1 in info_pipes_list:
+            pipe1.pop(0)
+            print(pipe1)
+        print(" ")
+
+        print("INFO PIPES2")
+        for pipe2 in info_pipes_list2:
+            pipe2.pop(0)
+            print(pipe2)
         print(" ")
 
         print("INFO CONNEXIONS:")
         for connexion in info_connexions_list:
+            print(connexion)
+        print(" ")
+
+        print("INFO CONNEXIONS2:")
+        for connexion in info_connexions_list2:
             print(connexion)
         print(" ")
 
@@ -484,119 +499,6 @@ class Pointcloud_Seg:
         else:
             pred_sub = np.array([])
         return pred_sub
-    
-    '''
-    def unify_pipes(self, info_pipes_list, info_connexions_list):
-        unified_list = list()
-        for i, pipe1 in enumerate(info_pipes_list):
-            start1 = pipe1[1]
-            end1 = pipe1[2]
-            for j, pipe2 in enumerate(info_pipes_list):
-                if i != j:
-                    start2 = pipe2[1]
-                    end2 = pipe2[2]
-
-                    ds1s2 = self.get_distance(start1, start2, 3)
-                    ds1e2 = self.get_distance(start1, end2, 3)
-                    de1s2 = self.get_distance(end1, start2, 3)
-                    de1e2 = self.get_distance(end1, end2, 3)
-
-                    closer = min([ds1s2, ds1e2, de1s2, de1e2])
-                    
-                    if closer < 0.1:
-
-                        closer_idx = [ds1s2, ds1e2, de1s2, de1e2].index(min([ds1s2, ds1e2, de1s2, de1e2]))
-                        connexion_near = False
-
-                        if closer_idx == 0:
-                            for connexion_info in info_connexions_list:
-                                connexion = connexion_info[0]
-                                d1 = self.get_distance(start1, connexion, 3)
-                                d2 = self.get_distance(start2, connexion, 3)
-                                if d1 < 0.15 or d2 < 0.15:
-                                    connexion_near = True
-
-                        elif closer_idx ==1:
-                            for connexion_info in info_connexions_list:
-                                connexion = connexion_info[0]
-                                d1 = self.get_distance(start1, connexion, 3)
-                                d2 = self.get_distance(end2, connexion, 3)
-                                if d1 < 0.15 or d2 < 0.15:
-                                    connexion_near = True
-
-                        elif closer_idx ==2:
-                            for connexion_info in info_connexions_list:
-                                connexion = connexion_info[0]
-                                d1 = self.get_distance(end1, connexion, 3)
-                                d2 = self.get_distance(start2, connexion, 3)
-                                if d1 < 0.15 or d2 < 0.15:
-                                    connexion_near = True
-
-                        else:
-                            for connexion_info in info_connexions_list:
-                                connexion = connexion_info[0]
-                                d1 = self.get_distance(end1, connexion, 3)
-                                d2 = self.get_distance(end2, connexion, 3)
-                                if d1 < 0.15 or d2 < 0.15:
-                                    connexion_near = True
-                        
-                        if connexion_near == False:
-
-
-                            if closer_idx == 0:
-                                vector1 = pipe1[4][0]
-                                vector2 = pipe2[4][0]
-                            elif closer_idx ==1:
-                                vector1 = pipe1[4][0]
-                                vector2 = pipe2[4][-1]
-                            elif closer_idx ==2:
-                                vector1 = pipe1[4][-1]
-                                vector2 = pipe2[4][0]
-                            else:
-                                vector1 = pipe1[4][-1]
-                                vector2 = pipe2[4][-1]
-
-                            angle = self.angle_between_vectors(vector1, vector2)
-                            if (angle<10 and angle>350) or (angle<190 and angle>170):
-
-                                points1 = pipe1[0]
-                                points2 = pipe2[0]
-
-                                if closer_idx == 0:
-                                    points2 = np.flipud(points2)
-                                    new_points = np.vstack((points2, points1))
-                                elif closer_idx ==1:
-                                    new_points = np.vstack((points2, points1))
-                                elif closer_idx ==2:
-                                    new_points = np.vstack((points1, points2))
-                                else:
-                                    points2 = np.flipud(points2)
-                                    new_points = np.vstack((points1, points2))
-
-                                new_start = new_points[0]                       # TODO si se quisiera puto intermedio se tendraiq ue calcular con la funcion
-                                new_end = new_points[-1]
-
-                                # TODO VOLVER A CALCULAR ELBOWS Y VECTORS
-
-                                new_pipe = [new_points, new_start, new_end, new_elbow_list, new_vector_list ]
-
-                                # TODO GESTIONAR BORRAR PIPES INVOLUCRADAS, AÑADIR ESTA NUEVA PIPE Y QUE TODO ESTE EN UN WHILE HASTA QUE NO SE JUNTE NINGUNA PIPE, BREAK DE LOS 2 FORS ...
-
-        return 1
-    '''
-
-    def get_distance(self, p1,p2, dim):
-        if dim == 2:
-            d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2))
-        if dim == 3:
-            d = math.sqrt(((p2[0]-p1[0])**2)+((p2[1]-p1[1])**2)+((p2[2]-p1[2])**2))
-        return d
-
-    def angle_between_vectors(self, v1, v2):
-        v1_u = v1/np.linalg.norm(v1)
-        v2_u = v2/np.linalg.norm(v2)
-        angle = np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
-        return np.degrees(angle)
 
 
 if __name__ == '__main__':
