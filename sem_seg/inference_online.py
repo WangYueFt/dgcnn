@@ -279,10 +279,10 @@ if __name__=='__main__':
 
                             k_pipe += len(info_pipe[0])                                          # update actual pipe idx
 
+                        info_pipes_list_copy = copy.deepcopy(info_pipes_list) 
+                        info_pipes_list2, info_connexions_list2 = get_info.unify_chains(info_pipes_list_copy, info_connexions_list)
 
-                        info_pipes_list2 = get_info.unify_chains(info_pipes_list, info_connexions_list) 
-
-                        info = [info_pipes_list2, info_connexions_list, info_valves_list]         # TODO publish info
+                        info = [info_pipes_list2, info_connexions_list2, info_valves_list]         # TODO publish info
 
                         # print info
 
@@ -293,19 +293,24 @@ if __name__=='__main__':
                         print(" ")
 
                         print("INFO PIPES:")
-                        for pipe in info_pipes_list:
-                            pipe.pop(0)
-                            print(pipe)
+                        for pipe1 in info_pipes_list:
+                            pipe1.pop(0)
+                            print(pipe1)
                         print(" ")
 
                         print("INFO PIPES2")
-                        for pipe in info_pipes_list2:
-                            pipe.pop(0)
-                            print(pipe)
+                        for pipe2 in info_pipes_list2:
+                            pipe2.pop(0)
+                            print(pipe2)
                         print(" ")
 
                         print("INFO CONNEXIONS:")
                         for connexion in info_connexions_list:
+                            print(connexion)
+                        print(" ")
+
+                        print("INFO CONNEXIONS2:")
+                        for connexion in info_connexions_list2:
                             print(connexion)
                         print(" ")
 

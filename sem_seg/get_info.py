@@ -376,7 +376,7 @@ def get_info_connexions(connexions, chains):
         del chains[i]
 
 
-    # recalculate enar chains to get new index
+    # recalculate near chains to get new index
     connexions_info2 = list()
     for connexion_info in connexions_info:
         connexion = connexion_info[0]

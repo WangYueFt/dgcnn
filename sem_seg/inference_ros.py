@@ -297,7 +297,7 @@ class Pointcloud_Seg:
         # TODO O HACER QUE LAS VALVULAS QUE NO TOQUEN ALMENOS UN START O END DE TUBERIA SE BORREN
         #info_valves_list2 = self.refine_valves(info_valves_list, info_pipes_list)
 
-        info = [info_pipes_list2, info_connexions_list, info_valves_list]         # TODO publish info
+        info = [info_pipes_list2, info_connexions_list2, info_valves_list]         # TODO publish info
 
         t4 = rospy.Time.now()
 
