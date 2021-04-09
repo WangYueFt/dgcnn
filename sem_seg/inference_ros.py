@@ -293,11 +293,19 @@ class Pointcloud_Seg:
         info_pipes_list_copy = copy.deepcopy(info_pipes_list) 
 
         info_pipes_list2, info_connexions_list2 = get_info.unify_chains(info_pipes_list_copy, info_connexions_list)     # TODO UNIR PIPES QUE ESTEN CERCA Y SU VECTOR SEA PARECIDO
-        # TODO QUE LAS VALVULAS QUE ESTAN CONECTADAS A 1 O 2 TUBERIAS COJAN LA MEAN DE SUS VECTORES COMO SU ORIENTACION
-        # TODO O HACER QUE LAS VALVULAS QUE NO TOQUEN ALMENOS UN START O END DE TUBERIA SE BORREN
-        #info_valves_list2 = self.refine_valves(info_valves_list, info_pipes_list)
 
-        info = [info_pipes_list2, info_connexions_list2, info_valves_list]         # TODO publish info
+
+        info1 = [info_pipes_list1, info_connexions_list1, info_valves_list]         # TODO publish info
+        info2 = [info_pipes_list2, info_connexions_list2, info_valves_list]         # TODO publish info
+
+        # info_to_ply(info1) # TODO
+        # info_to_ply(info2) # TODO
+
+
+        #info_valves_list_copy = copy.deepcopy(info_valves_list)
+        #info_valves_list2 = get_info.refine_valves(info_valves_list, info_pipes_list2)        # TODO VALVULAS QUE ESTAN CONECTADAS A 1 O 2 TUBERIAS COJAN SUS VECTORES, BORRAR VALVES NO CONECTADAS??
+        #info3 = [info_pipes_list2, info_connexions_list2, info_valves_list2]         # TODO publish info
+        # info_to_ply(info3) # TODO
 
         t4 = rospy.Time.now()
 
