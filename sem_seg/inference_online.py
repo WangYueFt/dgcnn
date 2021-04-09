@@ -23,7 +23,6 @@ parser.add_argument('--path_data', help='folder with train test data')
 parser.add_argument('--path_cls', help='path to classes txt.')
 parser.add_argument('--model_path', required=True, help='model checkpoint file path')
 parser.add_argument('--points_sub', type=int, default=256, help='Point number sub [default: 4096]')
-parser.add_argument('--points_proj', type=int, default=0, help='Point number proj [default: 4096]')
 parser.add_argument('--test_name', help='name of the test')
 parser.add_argument('--down_pred', default = True, help='downsample prediction')
 parser.add_argument('--targets_path', help='path in valve models.')
@@ -34,7 +33,6 @@ path_data = parsed_args.path_data
 path_cls = parsed_args.path_cls
 model_path = os.path.join(parsed_args.model_path, "model.ckpt")
 points_sub = parsed_args.points_sub
-points_proj = parsed_args.points_proj
 down_pred = parsed_args.down_pred
 test_name = parsed_args.test_name
 targets_path = parsed_args.targets_path
@@ -50,8 +48,6 @@ block_sub = 0.1
 stride_sub = 0.1
 block_proj = 0.1
 stride_proj = 0.1
-min_p_v = 30
-min_p_p = 60
 
 
 def evaluate(data, label, xyz_max, sess, ops):
@@ -78,20 +74,22 @@ def evaluate(data, label, xyz_max, sess, ops):
         pred_label = pred_label.reshape(pred_label.shape[0]*pred_label.shape[1],1)
         pred_label_list.append(pred_label)
 
-    pred_label_stacked = np.vstack(pred_label_list)  
+    if pred_label_list:
+        pred_label_stacked = np.vstack(pred_label_list)  
 
-    data = data.reshape((data.shape[0]*data.shape[1]), data.shape[2])
-    data = np.delete(data, [0,1,2], 1)
-    data[:, [0,1,2,3,4,5,]] = data[:, [3,4,5,0,1,2]] 
-    data[:,0] *= xyz_max[0]
-    data[:,1] *= xyz_max[1]
-    data[:,2] *= xyz_max[2]
-    data[:,3:] *= 255.0
-    
-    data = data[:pred_label_stacked.shape[0], :]
+        data = data.reshape((data.shape[0]*data.shape[1]), data.shape[2])
+        data = np.delete(data, [0,1,2], 1)
+        data[:, [0,1,2,3,4,5,]] = data[:, [3,4,5,0,1,2]] 
+        data[:,0] *= xyz_max[0]
+        data[:,1] *= xyz_max[1]
+        data[:,2] *= xyz_max[2]
+        data[:,3:] *= 255.0
+        
+        data = data[:pred_label_stacked.shape[0], :]
 
-    pred_sub = np.hstack([data,pred_label_stacked])  
-
+        pred_sub = np.hstack([data,pred_label_stacked])  
+    else:
+        pred_sub = np.array([])
     return pred_sub
 
 
@@ -166,22 +164,6 @@ if __name__=='__main__':
                         data_label_full_sub[:, 0:3] -= xyz_min               # move pointcloud to origin
                         xyz_max = np.amax(data_label_full_sub, axis=0)[0:3] # get pointcloud maxs
 
-                        ''' 
-                        # determine projection number of points
-                        if block_proj == 0.2: 
-                            start = 0.3333 # 0.03333  x10 because reduced data_label_full by /10 into data_label_full_sub
-                            by = 1024 / points_proj
-                            reduction = start / by
-
-                        else:
-                            start = 0.5 # 0.05  x10 because reduced data_label_full by /10 into data_label_full_sub 
-                            by = 512 / points_proj
-                            reduction = start / by
-                        
-                        n_idx_proj = int(data_label_full_sub.shape[0] * reduction)
-                        idx_proj = np.random.choice(data_label_full_sub.shape[0], n_idx_proj, replace=False)
-                        data_proj = data_label_full_sub[idx_proj, 0:6]  # subsample projection
-                        '''
                         data_sub, label_sub = indoor3d_util.room2blocks_plus_normalized_parsed(data_label_full_sub, xyz_max, points_sub, block_size=block_sub, stride=stride_sub, random_sample=False, sample_num=None, sample_aug=1) # subsample PC for evaluation
 
                         with tf.Graph().as_default():
@@ -215,45 +197,19 @@ if __name__=='__main__':
                         }
 
                         # init get_instances parameters
-                        rad_p = 0.045
-                        rad_v = 0.06
-                        dim = 3
-                        min_p_v = min_p_v
-                        min_p_p = min_p_p
-
-                        '''
-                        # get instances noref
-                        pred_sub_pipe = pred_sub[pred_sub[:,6] == [labels["pipe"]]]       # get data label pipe
-                        pred_sub_valve = pred_sub[pred_sub[:,6] == [labels["valve"]]]     # get data label pipe
-
-                        instances_noref_valve_list, _, _  = get_instances.get_instances(pred_sub_valve, dim, rad_v, min_p_v)
-                        instances_noref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe, dim, rad_p, min_p_p)
-                        i = len(instances_noref_valve_list)
-
-                        if len(instances_noref_valve_list)>0:
-                            instances_noref_valve = np.vstack(instances_noref_valve_list)
-                        if len(instances_noref_pipe_list)>0:
-                            instances_noref_pipe = np.vstack(instances_noref_pipe_list)
-                            instances_noref_pipe[:,7] = instances_noref_pipe[:,7]+i
-
-                        if len(instances_noref_valve_list)>0 and len(instances_noref_pipe_list)>0:
-                            instances_noref = np.concatenate((instances_noref_valve, instances_noref_pipe), axis=0)
-                        elif len(instances_noref_valve_list)==0 and len(instances_noref_pipe_list)>0:
-                            instances_noref = instances_noref_pipe
-                        elif len(instances_noref_valve_list)>0 and len(instances_noref_pipe_list)==0:
-                            instances_noref = instances_noref_valve
-                        else:
-                            instances_noref = None
-                        '''
+                        rad_p = 0.04               # max distance for pipe growing                             //PARAM
+                        rad_v = 0.04               # max distance for valve growing                            //PARAM
+                        dim_p = 3                  # compute 2D (2) or 3D (3) distance for pipe growing        //PARAM
+                        dim_v = 2                  # compute 2D (2) or 3D (3) distance for valve growing       //PARAM
+                        min_p_p = 60               # minimum number of points to consider a blob as a pipe     //PARAM
+                        min_p_v = 30 # 40 80 140   # minimum number of points to consider a blob as a valve    //PARAM
 
                         # get instances ref
                         pred_sub_pipe = pred_sub[pred_sub[:,6] == [labels["pipe"]]]       # get data label pipe
                         pred_sub_valve = pred_sub[pred_sub[:,6] == [labels["valve"]]]     # get data label pipe
-                        #instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, dim, rad_v, min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
-                        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances_o3d(pred_sub_valve, dim, rad_v, min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
-                        
-                        #if points_proj != 0:    # if projection  
-                        #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, data_proj) NO SE PROYECTA, FASTIDIA MATCHING CON PUTNOS DEL SUELO
+
+                        instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances(pred_sub_valve, dim_v, rad_v, min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
+                        #instances_ref_valve_list, pred_sub_pipe_ref, stolen_list  = get_instances.get_instances_o3d(pred_sub_valve, dim_v, rad_v, min_p_v, ref=True, ref_data = pred_sub_pipe, ref_rad = 0.1)
                         
 
                         info_valves_list = list()
@@ -267,10 +223,16 @@ if __name__=='__main__':
                             inst_o3d.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=15))
                             inst_o3d.orient_normals_to_align_with_direction(orientation_reference=([0, 0, 1]))
                             inst[:, 0:3] += xyz_central                # move instance to original position
+
                             info_valve = get_info.get_info(inst_o3d, targets_list, method="matching")
-                            max_fitness =  max(info_valve) 
-                            max_idx = info_valve.index(max_fitness)
-                            info_valves_list.append([xyz_central, max_fitness, max_idx])
+                            max_info =  max(info_valve)
+                            max_idx = info_valve.index(max_info)
+
+                            rad = math.radians(max_info[1])
+                            vector = np.array([math.cos(rad), math.sin(rad)])                               # get valve unit vector 
+                            vector = vector*0.18                                                            # resize vector to valve size //PARAM
+
+                            info_valves_list.append([xyz_central, max_info, vector, max_idx])  
 
                         descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[1][0] < 0.35] 
 
@@ -285,40 +247,67 @@ if __name__=='__main__':
                                 pred_sub_pipe_ref = np.concatenate((pred_sub_pipe_ref,stolen_points),axis=0)
 
                         for index in sorted(descart_valves_list, reverse=True):
+                            del info_valves_list[index]
                             del instances_ref_valve_list[index]
 
                         print("INFO VALVES:")
                         for i, inst in enumerate(info_valves_list):
                             print(inst)
 
-                        # TODO GESTIONAR ORIENTACION VALVULAS A APRTIR DE ANGULO?
 
-                        instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, dim, rad_p, min_p_p)
+                        instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, dim_p, rad_p, min_p_p)
                         #instances_ref_pipe_list, _, _  = get_instances.get_instances_o3d(pred_sub_pipe_ref, dim, rad_p, min_p_p)
                         
                         info_pipes_list = list()
-                        for i, inst in enumerate(instances_ref_pipe_list):
+                        info_connexions_list = list()
+                        k_pipe = 0
+
+                        for i, inst in enumerate(instances_ref_pipe_list): # for each pipe instance
+                            # transform instance to o3d pointcloud
                             inst_o3d = o3d.geometry.PointCloud()
                             inst_o3d.points = o3d.utility.Vector3dVector(inst[:,0:3])
                             inst_o3d.colors = o3d.utility.Vector3dVector(inst[:,3:6]/255)
-                            info_pipe = get_info.get_info(inst_o3d, models=0, method="skeleton")
-                            info_pipes_list.append(info_pipe)
+
+                            info_pipe = get_info.get_info(inst_o3d, models=0, method="skeleton") # get pipe instance info list( list( list(chain1, start1, end1, elbow_list1, vector_chain_list1), ...), list(connexions_points)) 
+                            
+                            for j, pipe_info in enumerate(info_pipe[0]):                         # stack pipes info
+                                info_pipes_list.append(pipe_info)
+
+                            for j, connexion_info in enumerate(info_pipe[1]):                    # stack conenexions info
+                                connexion_info[1] = [x+k_pipe for x in connexion_info[1]]
+                                info_connexions_list.append(connexion_info)
+
+                            k_pipe += len(info_pipe[0])                                          # update actual pipe idx
+
+
+                        info_pipes_list2 = get_info.unify_chains(info_pipes_list, info_connexions_list) 
+
+                        info = [info_pipes_list2, info_connexions_list, info_valves_list]         # TODO publish info
+
+                        # print info
+
+                        print(" ")
+                        print("INFO VALVES:")
+                        for valve in info_valves_list:
+                            print(valve)
+                        print(" ")
 
                         print("INFO PIPES:")
-                        for i, inst in enumerate(info_pipes_list):
-                            print("info instance " + str(i))
-                            print("-- chains:")
-                            for pipe in inst[0]:
-                                print(pipe)
-                            print("-- conexions:")
-                            for con in inst[1]:
-                                print(con)
-                        
-                        # TODO PASAR PARAMETROS
-                        # TODO UNIR PIPES QUE ESTEN CERCA Y SU VECTOR SEA PARECIDO
-                        # TODO QUE LAS VALVULAS QUE ESTAN CONECTADAS A 1 O 2 TUBERIAS COJAN LA MEAN DE SUS VECTORES COMO SU ORIENTACION
-                        # TODO merge info_valves and info_pipes into info
-                        # TODO SUMAR X Y Z MINIMO A TODAS LAS POSICIONES X Y Z DE  INFO PIPES Y VALVES
+                        for pipe in info_pipes_list:
+                            pipe.pop(0)
+                            print(pipe)
+                        print(" ")
+
+                        print("INFO PIPES2")
+                        for pipe in info_pipes_list2:
+                            pipe.pop(0)
+                            print(pipe)
+                        print(" ")
+
+                        print("INFO CONNEXIONS:")
+                        for connexion in info_connexions_list:
+                            print(connexion)
+                        print(" ")
 
                         # PRINTS
 
