@@ -622,7 +622,6 @@ def unify_chains(chains_info, connexions_info):
                 end1 = chain1[2]
                 for j, chain2 in enumerate(chains_info):
                     if j not in seen_list:
-                        seen_list.append(j)
                         if i != j:
 
                             print("chain " + str(i) + " vs chain " + str(j))
@@ -640,7 +639,7 @@ def unify_chains(chains_info, connexions_info):
 
                             print("closer " + str(closer) + " at " + str(closer_idx))
                             
-                            if closer < 0.1:
+                            if closer < 0.25:                                                      # //PARAM
                                 
                                 print("closer enough")
 
@@ -653,8 +652,8 @@ def unify_chains(chains_info, connexions_info):
                                         d2 = get_distance(start2, connexion, 3)
                                         if d1 < 0.15 or d2 < 0.15:                                  # //PARAM
                                             connexion_near = True
-                                    print("d1: " +str(d1) + ", d2: " + str(d2))
-                                    print("connexion near: " + str(connexion_near))
+                                        print("d1: " +str(d1) + ", d2: " + str(d2))
+                                        print("connexion near: " + str(connexion_near))
 
                                 elif closer_idx ==1:
                                     for connexion_info in connexions_info:
@@ -663,8 +662,8 @@ def unify_chains(chains_info, connexions_info):
                                         d2 = get_distance(end2, connexion, 3)
                                         if d1 < 0.15 or d2 < 0.15:                                  # //PARAM
                                             connexion_near = True
-                                    print("d1: " +str(d1) + ", d2: " + str(d2))
-                                    print("connexion near: " + str(connexion_near))
+                                        print("d1: " +str(d1) + ", d2: " + str(d2))
+                                        print("connexion near: " + str(connexion_near))
 
                                 elif closer_idx ==2:
                                     for connexion_info in connexions_info:
@@ -673,8 +672,8 @@ def unify_chains(chains_info, connexions_info):
                                         d2 = get_distance(start2, connexion, 3)
                                         if d1 < 0.15 or d2 < 0.15:                                  # //PARAM
                                             connexion_near = True
-                                    print("d1: " +str(d1) + ", d2: " + str(d2))
-                                    print("connexion near: " + str(connexion_near))
+                                        print("d1: " +str(d1) + ", d2: " + str(d2))
+                                        print("connexion near: " + str(connexion_near))
 
                                 else:
                                     for connexion_info in connexions_info:
@@ -683,9 +682,8 @@ def unify_chains(chains_info, connexions_info):
                                         d2 = get_distance(end2, connexion, 3)
                                         if d1 < 0.15 or d2 < 0.15:                                  # //PARAM
                                             connexion_near = True
-                            
-                                    print("d1: " +str(d1) + ", d2: " + str(d2))
-                                    print("connexion near: " + str(connexion_near))
+                                        print("d1: " +str(d1) + ", d2: " + str(d2))
+                                        print("connexion near: " + str(connexion_near))
 
 
                                 if connexion_near == False:
@@ -705,7 +703,7 @@ def unify_chains(chains_info, connexions_info):
 
                                     angle = angle_between_vectors(vector1, vector2)
                                     print("angle between vector: " + str(angle))
-                                    if (angle<10 and angle>350) or (angle<190 and angle>170):        # //PARAM
+                                    if (angle >= 350 and angle <= 360) or (angle >= 0 and angle <= 10) or (angle >= 170 and angle <= 190):        # //PARAM
                                         
                                         print("las junto!")
 
