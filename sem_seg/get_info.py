@@ -21,6 +21,127 @@ from skimage.morphology import skeletonize
  - python get_info.py --path_projections data/ --path_models valve_targets/ --path_cls 4.txt 
 
 '''
+def info_to_ply(info, path_out):
+
+    info_pipes_list = info[0]
+    info_connexions_list = info[1]
+    info_valves_list = info[2]
+
+    pipe_ply = list()       #  X Y Z R G B A 
+    startend_ply = list()   #  X Y Z R G B A 
+    elbow_ply = list()      #  X Y Z R G B A 
+    connexion_ply = list()  #  X Y Z R G B A 
+    valve_ply = list()      #  X Y Z R G B A 
+    vector1_ply = list()    #  X Y Z R G B A 
+    vector2_ply = list()    #  V1 V2
+
+    for i, pipe_info in enumerate(info_pipes_list):
+        pipe_list = list(pipe_info[0])
+        pipe_list.pop(0)
+        pipe_list.pop(-1)
+        pipe_ply = pipe_ply + pipe_list
+        startend_ply.append(pipe_info[1])
+        startend_ply.append(pipe_info[2])
+        elbow_ply = elbow_ply + pipe_info[3]
+
+        if len(pipe_info[3]) == 0:
+            point1 = pipe_info[0][0]
+            point2 = pipe_info[0][0]+pipe_info[4][0]
+            vector1_ply.append(point1)
+            vector1_ply.append(point2)
+
+        else:
+            point1 = pipe_info[0][0]
+            point2 = pipe_info[0][0]+pipe_info[4][0]
+            vector1_ply.append(point1)
+            vector1_ply.append(point2)
+            
+            for i, elbow in enumerate(pipe_info[3]):
+                point1 = elbow
+                point2 = elbow + pipe_info[4][i+1]
+                vector1_ply.append(point1)
+                vector1_ply.append(point2)
+
+    
+    for i, connexion_info in enumerate(info_connexions_list):
+        connexion_ply.append(connexion_info[0])
+
+    for i, valve_info in enumerate(info_valves_list):
+        valve_ply.append(valve_info[0])
+
+        point1 = valve_info[0]-(valve_info[2]/2)
+        point2 = valve_info[0]+(valve_info[2]/2)
+        vector1_ply.append(point1)
+        vector1_ply.append(point2)
+
+    pipe_ply_np = np.round(np.array(pipe_ply), 5)
+    pipe_color = np.array([[0, 255, 0],]*pipe_ply_np.shape[0])
+    pipe_ply_np_color = np.hstack((pipe_ply_np, pipe_color))   
+
+    startend_ply_np = np.round(np.array(startend_ply), 5)
+    startend_color = np.array([[0, 150, 0],]*startend_ply_np.shape[0])
+    startend_ply_np_color = np.hstack((startend_ply_np, startend_color))  
+
+    elbow_ply_np = np.round(np.array(elbow_ply), 3)
+    elbow_color = np.array([[255, 0, 0],]*elbow_ply_np.shape[0])
+    elbow_ply_np_color = np.hstack((elbow_ply_np, elbow_color))  
+
+    connexion_ply_np= np.round(np.array(connexion_ply), 3)
+    connexion_color = np.array([[0, 0, 0],]*connexion_ply_np.shape[0])
+    connexion_ply_np_color = np.hstack((connexion_ply_np, connexion_color))  
+
+    valve_ply_np = np.round(np.array(valve_ply), 5)
+    valve_color = np.array([[0, 0, 255],]*valve_ply_np.shape[0])
+    valve_ply_np_color = np.hstack((valve_ply_np, valve_color))  
+
+    vector1_ply_np = np.round(np.array(vector1_ply), 5)
+    vector1_color = np.array([[150, 150, 150],]*vector1_ply_np.shape[0])
+    vector1_ply_np_color = np.hstack((vector1_ply_np, vector1_color))  
+
+    pipe_ply = list(pipe_ply_np_color)     
+    startend_ply = list(startend_ply_np_color) 
+    elbow_ply = list(elbow_ply_np_color)    
+    connexion_ply = list(connexion_ply_np_color)
+    valve_ply = list(valve_ply_np_color)  
+    vector1_ply = list(vector1_ply_np_color)   
+
+    vertex = pipe_ply + startend_ply + elbow_ply + connexion_ply + valve_ply + vector1_ply
+    vertex_np = np.array(vertex)
+
+    disscount = vector1_ply_np.shape[0]-1
+    last_idx = vertex_np.shape[0]-1
+    for i in range(int(vector1_ply_np.shape[0]/2)):
+        vector_idxs = np.array([last_idx-disscount,last_idx-disscount+1])
+        vector2_ply.append(vector_idxs)
+        disscount -=2
+    vector2_ply_np = np.array(vector2_ply)
+
+    f = open(path_out, 'w')
+
+    f.write("ply" + '\n')
+    f.write("format ascii 1.0" + '\n')
+    f.write("comment VCGLIB generated" + '\n')
+    f.write("element vertex " + str(vertex_np.shape[0]) + '\n')
+    f.write("property float x" + '\n')
+    f.write("property float y" + '\n')
+    f.write("property float z" + '\n')
+    f.write("property uchar red" + '\n')
+    f.write("property uchar green" + '\n')
+    f.write("property uchar blue" + '\n')
+    f.write("element face 0" + '\n')
+    f.write("property list uchar int vertex_indices" + '\n')
+    f.write("element edge " + str(vector2_ply_np.shape[0]) + '\n')
+    f.write("property int vertex1" + '\n')
+    f.write("property int vertex2" + '\n')
+    f.write("end_header" + '\n')
+
+    for row in range(vertex_np.shape[0]):
+        line = ' '.join(map(str, vertex_np[row, :-3])) + ' ' + str(int(vertex_np[row, 3]))+ ' ' + str(int(vertex_np[row, 4])) + ' ' + str(int(vertex_np[row, 5])) +'\n'
+        f.write(line)
+    for row in range(vector2_ply_np.shape[0]):
+        line = str(int(vector2_ply_np[row, 0]))+ ' ' + str(int(vector2_ply_np[row, 1])) +'\n'
+        f.write(line)
+    f.close()
 
 
 def get_info_classes(cls_path):
@@ -548,10 +669,7 @@ def get_info_skeleton(instance):
         #chain_o3d.points = o3d.utility.Vector3dVector(chain[:,0:3])
         #print_o3d(chain_o3d)
 
-        look_ahead = 14                                                 # look ahead distance to find changes in direction (elbows) in chain points //PARAM
-        elbow_size = 9                                                  # elbow size in chain points   //PARAM
-        angle_elbow = 60                                                # angle thr to consider an elow   //PARAM   
-        elbow_idx_list = get_elbows(chain, look_ahead, elbow_size, angle_elbow)
+        elbow_idx_list = get_elbows(chain)
 
         elbow_list = list()
         for i in elbow_idx_list:                                        # append elbow points
@@ -563,14 +681,14 @@ def get_info_skeleton(instance):
             vector_chain = chain[-1] - chain[0]                             # vector from start to finish
             vector_chain_list.append(vector_chain)
         else:                                                               # if chain has any elbow
-            vector_chain = chain[elbow_idx_list[0]-elbow_size] - chain[0]   # first vector from start to first_elbow-elbow_size
+            vector_chain = chain[elbow_idx_list[0]] - chain[0]   # first vector from start to first_elbow
             vector_chain_list.append(vector_chain)
 
             for e in range(len(elbow_idx_list)-1):                                                          # middle elbows
-                vector_chain = chain[elbow_idx_list[e+1]-elbow_size] - chain[elbow_idx_list[e]+elbow_size]  # vector from current_elbow+elbow_size to next_elbow-elbow_size
+                vector_chain = chain[elbow_idx_list[e+1]] - chain[elbow_idx_list[e]]  # vector from current_elbow to next_elbow
                 vector_chain_list.append(vector_chain)
 
-            vector_chain = chain[-1] - chain[elbow_idx_list[-1]+elbow_size] # last vector from last_elbow+elbow_Size to end
+            vector_chain = chain[-1] - chain[elbow_idx_list[-1]] # last vector from last_elbow to end
             vector_chain_list.append(vector_chain)
 
         # get % points
@@ -595,16 +713,6 @@ def get_info_skeleton(instance):
     return info
 
 
-
-
-
-
-
-
-
-
-
-
 def unify_chains(chains_info, connexions_info):
 
     print("entering unify")
@@ -623,7 +731,7 @@ def unify_chains(chains_info, connexions_info):
                 for j, chain2 in enumerate(chains_info):
                     if j not in seen_list:
                         if i != j:
-
+                            print(" ") 
                             print("chain " + str(i) + " vs chain " + str(j))
 
                             start2 = chain2[1]
@@ -639,7 +747,7 @@ def unify_chains(chains_info, connexions_info):
 
                             print("closer " + str(closer) + " at " + str(closer_idx))
                             
-                            if closer < 0.25:                                                      # //PARAM
+                            if closer < 0.15:                                                      # //PARAM
                                 
                                 print("closer enough")
 
@@ -703,7 +811,7 @@ def unify_chains(chains_info, connexions_info):
 
                                     angle = angle_between_vectors(vector1, vector2)
                                     print("angle between vector: " + str(angle))
-                                    if (angle >= 350 and angle <= 360) or (angle >= 0 and angle <= 10) or (angle >= 170 and angle <= 190):        # //PARAM
+                                    if (angle >= 345 and angle <= 360) or (angle >= 0 and angle <= 15) or (angle >= 165 and angle <= 195):        # //PARAM
                                         
                                         print("las junto!")
 
@@ -725,12 +833,7 @@ def unify_chains(chains_info, connexions_info):
                                             points2 = np.flipud(points2)
                                             new_chain = np.vstack((points1, points2))
 
-
-
-                                        look_ahead = 14                                                 # look ahead distance to find changes in direction (elbows) in chain points //PARAM
-                                        elbow_size = 9                                                  # elbow size in chain points   //PARAM
-                                        angle_elbow = 60                                                # angle thr to consider an elow   //PARAM   
-                                        elbow_idx_list = get_elbows(new_chain, look_ahead, elbow_size, angle_elbow)
+                                        elbow_idx_list = get_elbows(new_chain)
 
                                         new_elbow_list = list()
                                         for i in elbow_idx_list:                                        # append elbow points
@@ -742,14 +845,14 @@ def unify_chains(chains_info, connexions_info):
                                             vector_chain = new_chain[-1] - new_chain[0]                             # vector from start to finish
                                             new_vector_chain_list.append(vector_chain)
                                         else:                                                               # if chain has any elbow
-                                            vector_chain = new_chain[elbow_idx_list[0]-elbow_size] - new_chain[0]   # first vector from start to first_elbow-elbow_size
+                                            vector_chain = new_chain[elbow_idx_list[0]] - new_chain[0]   # first vector from start to first_elbow-
                                             new_vector_chain_list.append(vector_chain)
 
                                             for e in range(len(elbow_idx_list)-1):                                                          # middle elbows
-                                                vector_chain = new_chain[elbow_idx_list[e+1]-elbow_size] - new_chain[elbow_idx_list[e]+elbow_size]  # vector from current_elbow+elbow_size to next_elbow-elbow_size
+                                                vector_chain = new_chain[elbow_idx_list[e+1]] - new_chain[elbow_idx_list[e]]  # vector from current_elbow to next_elbow
                                                 new_vector_chain_list.append(vector_chain)
 
-                                            vector_chain = new_chain[-1] - new_chain[elbow_idx_list[-1]+elbow_size] # last vector from last_elbow+elbow_Size to end
+                                            vector_chain = new_chain[-1] - new_chain[elbow_idx_list[-1]] # last vector from last_elbow to end
                                             new_vector_chain_list.append(vector_chain)
 
 
@@ -790,22 +893,11 @@ def unify_chains(chains_info, connexions_info):
     return chains_info, connexions_info2
 
 
+def get_elbows(chain):
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def get_elbows(chain, look_ahead, elbow_size, angle_elbow):
+    look_ahead = 10                                                 # look ahead distance to find changes in direction (elbows) in chain points //PARAM
+    elbow_size = 7                                                  # elbow size in chain points   //PARAM
+    angle_elbow = 70                                                # angle thr to consider an elow   //PARAM   
 
     angle_list = list()
     elbow_idx_list = list()
