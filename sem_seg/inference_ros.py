@@ -237,10 +237,10 @@ class Pointcloud_Seg:
             max_idx = info_valve.index(max_info)                                             # idx of best valve match
             
             rad = math.radians(max_info[1])
-            vector = np.array([math.cos(rad), math.sin(rad)])                               # get valve unit vector 
-            vector = vector*0.18                                                            # resize vector to valve size //PARAM
+            vector = np.array([math.cos(rad), math.sin(rad), 0])                             # get valve unit vector at zero
+            vector = vector*0.18                                                             # resize vector to valve size //PARAM
 
-            info_valves_list.append([xyz_central, max_info, vector, max_idx])                        # append valve instance info
+            info_valves_list.append([xyz_central, max_info, vector, max_idx, inst[:,0:3]])                        # append valve instance info
 
         # based on valve fitness, delete it and return stolen points to pipe prediction
         descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[1][0] < 0.4]     # if max fitnes < thr  //PARAM
@@ -291,17 +291,25 @@ class Pointcloud_Seg:
 
 
         info_pipes_list_copy = copy.deepcopy(info_pipes_list) 
+        info_connexions_list_copy = copy.deepcopy(info_connexions_list)
+        info_pipes_list2, info_connexions_list2 = get_info.unify_chains(info_pipes_list_copy, info_connexions_list_copy)  
 
-        info_pipes_list2, info_connexions_list2 = get_info.unify_chains(info_pipes_list_copy, info_connexions_list)     # TODO UNIR PIPES QUE ESTEN CERCA Y SU VECTOR SEA PARECIDO
-
+        info_valves_list_copy = copy.deepcopy(info_valves_list)
+        info_valves_list2 = get_info.refine_valves(info_valves_list_copy, info_pipes_list2) 
 
         info1 = [info_pipes_list1, info_connexions_list1, info_valves_list]         # TODO publish info
         info2 = [info_pipes_list2, info_connexions_list2, info_valves_list]         # TODO publish info
+        info3 = [info_pipes_list2, info_connexions_list2, info_valves_list2]       # TODO publish info
 
+        out = False
+        if out == True:
+            path_out1 = "set_path_out1"
+            get_info.info_to_ply(info1, path_out1)
+            path_out2 = "set_path_out2"
+            get_info.info_to_ply(info2, path_out2)
+            path_out2 = "set_path_out3"
+            get_info.info_to_ply(info3, path_out3)
 
-        #info_valves_list_copy = copy.deepcopy(info_valves_list)
-        #info_valves_list2 = get_info.refine_valves(info_valves_list, info_pipes_list2) # TODO VALVULAS QUE ESTAN CONECTADAS A 1 O 2 TUBERIAS COJAN SUS VECTORES, BORRAR VALVES NO CONECTADAS??
-        #info3 = [info_pipes_list2, info_connexions_list2, info_valves_list2]           # TODO publish info
 
         t4 = rospy.Time.now()
 
@@ -310,6 +318,7 @@ class Pointcloud_Seg:
         print(" ")
         print("INFO VALVES:")
         for valve in info_valves_list:
+            valve.pop(-1)
             print(valve)
         print(" ")
 

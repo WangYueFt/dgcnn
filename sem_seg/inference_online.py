@@ -233,7 +233,7 @@ if __name__=='__main__':
                         vector = np.array([math.cos(rad), math.sin(rad), 0])                            # get valve unit vector at Z 0
                         vector = vector*0.18                                                            # resize vector to valve size //PARAM
 
-                        info_valves_list.append([xyz_central, max_info, vector, max_idx])  
+                        info_valves_list.append([xyz_central, max_info, vector, max_idx, inst[:,0:3]])  
 
                     descart_valves_list = [i for i, x in enumerate(info_valves_list) if x[1][0] < 0.35] 
 
@@ -250,10 +250,6 @@ if __name__=='__main__':
                     for index in sorted(descart_valves_list, reverse=True):
                         del info_valves_list[index]
                         del instances_ref_valve_list[index]
-
-                    print("INFO VALVES:")
-                    for i, inst in enumerate(info_valves_list):
-                        print(inst)
 
 
                     instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, dim_p, rad_p, min_p_p)
@@ -284,23 +280,19 @@ if __name__=='__main__':
                     info_connexions_list_copy = copy.deepcopy(info_connexions_list)
                     info_pipes_list2, info_connexions_list2 = get_info.unify_chains(info_pipes_list_copy, info_connexions_list_copy)
 
+                    info_valves_list_copy = copy.deepcopy(info_valves_list)
+                    info_valves_list2 = get_info.refine_valves(info_valves_list_copy, info_pipes_list2)  # TODO VALVULAS QUE ESTAN CONECTADAS A 1 O 2 TUBERIAS COJAN SUS VECTORES, BORRAR VALVES NO CONECTADAS??
 
-                    info1 = [info_pipes_list, info_connexions_list, info_valves_list]         # TODO publish info
-                    info2 = [info_pipes_list2, info_connexions_list2, info_valves_list]         # TODO publish info
+                    info1 = [info_pipes_list, info_connexions_list, info_valves_list]      
+                    info2 = [info_pipes_list2, info_connexions_list2, info_valves_list]       
+                    info3 = [info_pipes_list2, info_connexions_list2, info_valves_list2]       
 
                     path_out1 = os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_info1.ply')
                     get_info.info_to_ply(info1, path_out1)
-
                     path_out2 = os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_info2.ply')
                     get_info.info_to_ply(info2, path_out2)
-
-
-                    #info_valves_list_copy = copy.deepcopy(info_valves_list)
-                    #info_valves_list2 = get_info.refine_valves(info_valves_list, info_pipes_list2)  # TODO VALVULAS QUE ESTAN CONECTADAS A 1 O 2 TUBERIAS COJAN SUS VECTORES, BORRAR VALVES NO CONECTADAS??
-                    #info3 = [info_pipes_list2, info_connexions_list2, info_valves_list2]         # TODO publish info
-
-                    #path_out3 = os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_info3.ply')
-                    #get_info.info_to_ply(info3, path_out3) # TODO
+                    path_out3 = os.path.join(dump_path, os.path.basename(filepath)[:-4]+'_info3.ply')
+                    get_info.info_to_ply(info3, path_out3)
 
 
 
@@ -309,6 +301,13 @@ if __name__=='__main__':
                     print(" ")
                     print("INFO VALVES:")
                     for valve in info_valves_list:
+                        valve.pop(-1)
+                        print(valve)
+                    print(" ")
+
+                    print("INFO VALVES2:")
+                    for valve in info_valves_list2:
+                        valve.pop(-1)
                         print(valve)
                     print(" ")
 

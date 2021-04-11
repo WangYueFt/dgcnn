@@ -30,35 +30,36 @@ def info_to_ply(info, path_out):
     pipe_ply = list()       #  X Y Z R G B A 
     startend_ply = list()   #  X Y Z R G B A 
     elbow_ply = list()      #  X Y Z R G B A 
-    connexion_ply = list()  #  X Y Z R G B A 
-    valve_ply = list()      #  X Y Z R G B A 
     vector1_ply = list()    #  X Y Z R G B A 
     vector2_ply = list()    #  V1 V2
+    connexion_ply = list()  #  X Y Z R G B A 
+    valve_ply = list()      #  X Y Z R G B A 
+
 
     for i, pipe_info in enumerate(info_pipes_list):
         pipe_list = list(pipe_info[0])
         pipe_list.pop(0)
         pipe_list.pop(-1)
         pipe_ply = pipe_ply + pipe_list
-        startend_ply.append(pipe_info[1])
-        startend_ply.append(pipe_info[2])
-        elbow_ply = elbow_ply + pipe_info[3]
+        startend_ply.append(pipe_info[0][0])
+        startend_ply.append(pipe_info[0][-1])
+        elbow_ply = elbow_ply + pipe_info[1]
 
-        if len(pipe_info[3]) == 0:
+        if len(pipe_info[1]) == 0:
             point1 = pipe_info[0][0]
-            point2 = pipe_info[0][0]+pipe_info[4][0]
+            point2 = pipe_info[0][0]+pipe_info[2][0]
             vector1_ply.append(point1)
             vector1_ply.append(point2)
 
         else:
             point1 = pipe_info[0][0]
-            point2 = pipe_info[0][0]+pipe_info[4][0]
+            point2 = pipe_info[0][0]+pipe_info[2][0]
             vector1_ply.append(point1)
             vector1_ply.append(point2)
             
-            for i, elbow in enumerate(pipe_info[3]):
+            for i, elbow in enumerate(pipe_info[1]):
                 point1 = elbow
-                point2 = elbow + pipe_info[4][i+1]
+                point2 = elbow + pipe_info[2][i+1]
                 vector1_ply.append(point1)
                 vector1_ply.append(point2)
 
@@ -82,11 +83,11 @@ def info_to_ply(info, path_out):
     startend_color = np.array([[0, 150, 0],]*startend_ply_np.shape[0])
     startend_ply_np_color = np.hstack((startend_ply_np, startend_color))  
 
-    elbow_ply_np = np.round(np.array(elbow_ply), 3)
+    elbow_ply_np = np.round(np.array(elbow_ply), 2)
     elbow_color = np.array([[255, 0, 0],]*elbow_ply_np.shape[0])
     elbow_ply_np_color = np.hstack((elbow_ply_np, elbow_color))  
 
-    connexion_ply_np= np.round(np.array(connexion_ply), 3)
+    connexion_ply_np= np.round(np.array(connexion_ply), 2)
     connexion_color = np.array([[0, 0, 0],]*connexion_ply_np.shape[0])
     connexion_ply_np_color = np.hstack((connexion_ply_np, connexion_color))  
 
@@ -692,19 +693,15 @@ def get_info_skeleton(instance):
             vector_chain_list.append(vector_chain)
 
         # get % points
-        vector_list = list()                                            
-        for j in range(len(chain)-1):                                   # calculate vectors between chain links
-            vector = chain[j+1] - chain[j]
-            vector_list.append(vector)
 
-        start_idx = get_position_idx(vector_list, 0)                        
-        start = chain[start_idx]
-        #mid_idx = get_position_idx(vector_list, 50)
-        #mid = chain[mid_idx]
-        end_idx = get_position_idx(vector_list, 100)
-        end = chain[end_idx]
+        #start_idx = get_position_idx(chain, 0)                        
+        #start = chain[start_idx]
+        mid_idx = get_position_idx(chain, 50)
+        mid = chain[mid_idx]
+        #end_idx = get_position_idx(chain, 100)
+        #end = chain[end_idx]
 
-        info_chain = [chain, start, end, elbow_list, vector_chain_list]     # //PARAM return chain or not
+        info_chain = [chain, elbow_list, vector_chain_list, mid]            # //PARAM return chain or not
         #info_chain = [start, end, elbow_list, vector_chain_list]           # //PARAM return chain or not
         info_chains.append(info_chain)
     
@@ -712,6 +709,88 @@ def get_info_skeleton(instance):
 
     return info
 
+def refine_valves(valves_info, pipes_info):
+
+    delete_valve_list = list()
+    for i, valve_info in enumerate(valves_info):
+
+        near_pipes_list = list()
+        near_type_list = list()
+        for j, pipe_info in enumerate(pipes_info):
+            for p in valves_info[i][4]:
+                d_to_start = get_distance(p, pipe_info[0][0], 3)
+                d_to_end = get_distance(p, pipe_info[0][-1], 3)
+                if d_to_start <= 0.1:                           # //PARAM
+                    near_pipes_list.append(j)
+                    near_type_list.append(0)   
+                    break  
+                if d_to_end <= 0.1:                             # //PARAM
+                    near_pipes_list.append(j)
+                    near_type_list.append(-1)   
+                    break  
+
+        if len(near_pipes_list)==0:
+            delete_valve_list.append(i)
+        
+        if len(near_pipes_list)==1:
+            new_vector = pipes_info[near_pipes_list[0]][2][near_type_list[0]]
+            new_vector = new_vector / np.linalg.norm(new_vector)
+            new_vector = new_vector * 0.18                             # //PARAM
+            valves_info[i][2] = new_vector
+
+
+        if len(near_pipes_list)==2:
+            vector1 = pipes_info[near_pipes_list[0]][2][near_type_list[0]]
+            vector2 = pipes_info[near_pipes_list[1]][2][near_type_list[1]]
+            angle = angle_between_vectors(vector1, vector2)
+            print("angle between vector: " + str(angle))
+            if (angle >= 345 and angle <= 360) or (angle >= 0 and angle <= 15) or (angle >= 165 and angle <= 195):        # //PARAM
+                new_vector = (vector1+vector2)/2
+                new_vector = new_vector / np.linalg.norm(new_vector)
+                new_vector = new_vector * 0.18                             # //PARAM
+                valves_info[i][2] = new_vector
+
+
+        if len(near_pipes_list)==3:
+
+            if valves_info[i][3] == 0:      # set valve as a 3 way valve, trying to match handle possition
+                valves_info[i][3] = 2
+            if valves_info[i][3] == 1:      # set valve as a 3 way valve, trying to match handle possition
+                valves_info[i][3] = 3
+
+
+            vector1 = pipes_info[near_pipes_list[0]][2][near_type_list[0]]
+            vector2 = pipes_info[near_pipes_list[1]][2][near_type_list[1]]
+            vector3 = pipes_info[near_pipes_list[2]][2][near_type_list[2]]
+
+            angle12 = angle_between_vectors(vector1, vector2)
+            angle13 = angle_between_vectors(vector1, vector3)
+            angle23 = angle_between_vectors(vector2, vector3)
+
+            print("angle between vector12: " + str(angle12))
+            print("angle between vector13: " + str(angle13))
+            print("angle between vector23: " + str(angle23))
+
+            if (angle12 >= 345 and angle12 <= 360) or (angle12 >= 0 and angle12 <= 15) or (angle12 >= 165 and angle12 <= 195):        # //PARAM
+                new_vector = (vector1+vector2)/2
+                new_vector = new_vector / np.linalg.norm(new_vector)
+                new_vector = new_vector * 0.18                             # //PARAM
+                valves_info[i][2] = new_vector
+            if (angle13 >= 345 and angle13 <= 360) or (angle13 >= 0 and angle13 <= 15) or (angle13 >= 165 and angle13 <= 195):        # //PARAM
+                new_vector = (vector1+vector3)/2
+                new_vector = new_vector / np.linalg.norm(new_vector)
+                new_vector = new_vector * 0.18                             # //PARAM
+                valves_info[i][2] = new_vector
+            if (angle23 >= 345 and angle23 <= 360) or (angle23 >= 0 and angle23 <= 15) or (angle23 >= 165 and angle23 <= 195):        # //PARAM
+                new_vector = (vector2+vector3)/2
+                new_vector = new_vector / np.linalg.norm(new_vector)
+                new_vector = new_vector * 0.18                             # //PARAM
+                valves_info[i][2] = new_vector
+
+    for i in sorted(delete_valve_list, reverse=True):      # delete marked valves # //PARAM
+        del valves_info[i]                                                  
+
+    return valves_info
 
 def unify_chains(chains_info, connexions_info):
 
@@ -726,16 +805,16 @@ def unify_chains(chains_info, connexions_info):
         for i, chain1 in enumerate(chains_info):
             if i not in seen_list:
                 seen_list.append(i)
-                start1 = chain1[1]
-                end1 = chain1[2]
+                start1 = chain1[0][0]
+                end1 = chain1[0][-1]
                 for j, chain2 in enumerate(chains_info):
                     if j not in seen_list:
                         if i != j:
                             print(" ") 
                             print("chain " + str(i) + " vs chain " + str(j))
 
-                            start2 = chain2[1]
-                            end2 = chain2[2]
+                            start2 = chain2[0][0]
+                            end2 = chain2[0][-1]
 
                             ds1s2 = get_distance(start1, start2, 3)
                             ds1e2 = get_distance(start1, end2, 3)
@@ -797,17 +876,17 @@ def unify_chains(chains_info, connexions_info):
                                 if connexion_near == False:
 
                                     if closer_idx == 0:
-                                        vector1 = chain1[4][0]
-                                        vector2 = chain2[4][0]
+                                        vector1 = chain1[2][0]
+                                        vector2 = chain2[2][0]
                                     elif closer_idx ==1:
-                                        vector1 = chain1[4][0]
-                                        vector2 = chain2[4][-1]
+                                        vector1 = chain1[2][0]
+                                        vector2 = chain2[2][-1]
                                     elif closer_idx ==2:
-                                        vector1 = chain1[4][-1]
-                                        vector2 = chain2[4][0]
+                                        vector1 = chain1[2][-1]
+                                        vector2 = chain2[2][0]
                                     else:
-                                        vector1 = chain1[4][-1]
-                                        vector2 = chain2[4][-1]
+                                        vector1 = chain1[2][-1]
+                                        vector2 = chain2[2][-1]
 
                                     angle = angle_between_vectors(vector1, vector2)
                                     print("angle between vector: " + str(angle))
@@ -855,20 +934,14 @@ def unify_chains(chains_info, connexions_info):
                                             vector_chain = new_chain[-1] - new_chain[elbow_idx_list[-1]] # last vector from last_elbow to end
                                             new_vector_chain_list.append(vector_chain)
 
+                                        #start_idx = get_position_idx(new_chain, 0)                        
+                                        #new_start = new_chain[start_idx]
+                                        mid_idx = get_position_idx(new_chain, 50)
+                                        new_mid = new_chain[mid_idx]
+                                        #end_idx = get_position_idx(new_chain, 100)
+                                        #new_end = new_chain[end_idx]
 
-                                        vector_list = list()                                            
-                                        for j in range(len(new_chain)-1):                                   # calculate vectors between chain links
-                                            vector = new_chain[j+1] - new_chain[j]
-                                            vector_list.append(vector)
-
-                                        start_idx = get_position_idx(vector_list, 0)                        
-                                        new_start = new_chain[start_idx]
-                                        #mid_idx = get_position_idx(vector_list, 50)
-                                        #mid = chain[mid_idx]
-                                        end_idx = get_position_idx(vector_list, 100)
-                                        new_end = new_chain[end_idx]
-
-                                        new_chain_info = [new_chain, new_start, new_end, new_elbow_list, new_vector_chain_list]
+                                        new_chain_info = [new_chain, new_elbow_list, new_vector_chain_list, new_mid]
                                         new_info_chains.append(new_chain_info)
 
         for i in sorted(touched_list, reverse=True):      # delete marked chains
@@ -928,7 +1001,12 @@ def get_elbows(chain):
 
 
 
-def get_position_idx(vector_list, percentage):
+def get_position_idx(chain, percentage):
+
+    vector_list = list()                                            
+    for j in range(len(chain)-1):                                   # calculate vectors between chain links
+        vector = chain[j+1] - chain[j]
+        vector_list.append(vector)
 
     # calculate total dist between vector list
     total_dist = 0
