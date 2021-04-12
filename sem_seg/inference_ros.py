@@ -217,7 +217,7 @@ class Pointcloud_Seg:
         # project valve isntances, removed because produced errors on valve matching due to the points gathered @ the floor
         #instances_ref_valve_list = project_inst.project_inst(instances_ref_valve_list, pc_proj) # pc_np_base 
 
-        t31 = rospy.Time.now()
+        t4 = rospy.Time.now()
 
         # get valve information
         info_valves_list = list()
@@ -260,13 +260,13 @@ class Pointcloud_Seg:
 
 
         
-        t32 = rospy.Time.now()
+        t5 = rospy.Time.now()
 
         # get pipe instances
         instances_ref_pipe_list, _, _  = get_instances.get_instances(pred_sub_pipe_ref, self.dim_p, self.rad_p, self.min_p_p)
         #instances_ref_pipe_list, _, _  = get_instances.get_instances_o3d(pred_sub_pipe_ref, self.dim_p, self.rad_p, self.min_p_p)
 
-        t33 = rospy.Time.now()
+        t6 = rospy.Time.now()
 
         info_pipes_list = list()
         info_connexions_list = list()
@@ -290,34 +290,46 @@ class Pointcloud_Seg:
             k_pipe += len(info_pipe[0])                                          # update actual pipe idx
 
 
+        t7 = rospy.Time.now()
+
         info_pipes_list_copy = copy.deepcopy(info_pipes_list) 
         info_connexions_list_copy = copy.deepcopy(info_connexions_list)
         info_pipes_list2, info_connexions_list2 = get_info.unify_chains(info_pipes_list_copy, info_connexions_list_copy)  
 
+        t8 = rospy.Time.now()
+
         info_valves_list_copy = copy.deepcopy(info_valves_list)
         info_valves_list2 = get_info.refine_valves(info_valves_list_copy, info_pipes_list2) 
 
-        info1 = [info_pipes_list1, info_connexions_list1, info_valves_list]         # TODO publish info
+        t9 = rospy.Time.now()
+
+        info1 = [info_pipes_list, info_connexions_list, info_valves_list]         # TODO publish info
         info2 = [info_pipes_list2, info_connexions_list2, info_valves_list]         # TODO publish info
         info3 = [info_pipes_list2, info_connexions_list2, info_valves_list2]       # TODO publish info
 
         out = False
         if out == True:
-            path_out1 = "set_path_out1"
+            name = str(time.time())
+            name = name.replace('.', '')
+            path_out1 = os.path.join("/home/miguel/Desktop/test_out_info_from_ros", name+"_1.ply")
             get_info.info_to_ply(info1, path_out1)
-            path_out2 = "set_path_out2"
+            path_out2 = os.path.join("/home/miguel/Desktop/test_out_info_from_ros", name+"_2.ply")
             get_info.info_to_ply(info2, path_out2)
-            path_out2 = "set_path_out3"
+            path_out3 = os.path.join("/home/miguel/Desktop/test_out_info_from_ros", name+"_3.ply")
             get_info.info_to_ply(info3, path_out3)
 
-
-        t4 = rospy.Time.now()
 
         # print info
 
         print(" ")
         print("INFO VALVES:")
         for valve in info_valves_list:
+            valve.pop(-1)
+            print(valve)
+        print(" ")
+
+        print("INFO VALVES2:")
+        for valve in info_valves_list2:
             valve.pop(-1)
             print(valve)
         print(" ")
@@ -386,27 +398,51 @@ class Pointcloud_Seg:
         self.pub_pc_seg.publish(pc_seg)
         self.pub_pc_inst.publish(pc_inst)
 
-        t5 = rospy.Time.now()
+        t10 = rospy.Time.now()
 
         time_read = t1-t0
         time_blocks = t2-t1
         time_inferference = t3-t2
-        time_instaces = t31-t3 + t33-t32
-        time_valve_info = t32-t31
-        time_pipe_info = t4-t33
-        time_publish = t5-t4
-        time_total = t5-t0
+
+        time_instaces_valve = t4-t3
+        time_instaces_pipe = t6-t5
+        time_instaces = time_instaces_valve + time_instaces_pipe
+
+        time_info_valve = t5-t4
+        time_info_pipe = t7-t6
+        time_info = time_info_valve + time_info_pipe
+
+        time_ref_valve = t9-t8
+        time_ref_pipe = t8-t7
+        time_ref = time_ref_valve + time_ref_pipe
+
+        time_publish = t10-t9
+        time_total = t10-t0
 
         # print time info
         rospy.loginfo('[%s]: INFO TIMES:', self.name)	
+        print("")
         rospy.loginfo('[%s]: Pc processing took %.2f seconds. Split into:', self.name, time_total.secs + time_total.nsecs*1e-9)
-        rospy.loginfo('[%s]: Reading ---- %.2f seconds (%i%%)', self.name, time_read.secs + time_read.nsecs*1e-9, (time_read/time_total)*100)
-        rospy.loginfo('[%s]: Blocks ----- %.2f seconds (%i%%)', self.name, time_blocks.secs + time_blocks.nsecs*1e-9, (time_blocks/time_total)*100)
-        rospy.loginfo('[%s]: Inference -- %.2f seconds (%i%%)', self.name, time_inferference.secs + time_inferference.nsecs*1e-9, (time_inferference/time_total)*100)
-        rospy.loginfo('[%s]: Instances -- %.2f seconds (%i%%)', self.name, time_instaces.secs + time_instaces.nsecs*1e-9, (time_instaces/time_total)*100)
-        rospy.loginfo('[%s]: Valve info - %.2f seconds (%i%%)', self.name, time_valve_info.secs + time_valve_info.nsecs*1e-9, (time_valve_info/time_total)*100)
-        rospy.loginfo('[%s]: Pipe info - %.2f seconds (%i%%)', self.name, time_pipe_info.secs + time_pipe_info.nsecs*1e-9, (time_pipe_info/time_total)*100)
-        rospy.loginfo('[%s]: Publish ---- %.2f seconds (%i%%)', self.name, time_publish.secs + time_publish.nsecs*1e-9, (time_publish/time_total)*100)
+        print("")
+        rospy.loginfo('[%s]: Reading ------ %.2f seconds (%i%%)', self.name, time_read.secs + time_read.nsecs*1e-9, (time_read/time_total)*100)
+        print("")
+        rospy.loginfo('[%s]: Blocks ------- %.2f seconds (%i%%)', self.name, time_blocks.secs + time_blocks.nsecs*1e-9, (time_blocks/time_total)*100)
+        print("")
+        rospy.loginfo('[%s]: Inference ---- %.2f seconds (%i%%)', self.name, time_inferference.secs + time_inferference.nsecs*1e-9, (time_inferference/time_total)*100)
+        print("")
+        rospy.loginfo('[%s]: Instances ---- %.2f seconds (%i%%)', self.name, time_instaces.secs + time_instaces.nsecs*1e-9, (time_instaces/time_total)*100)
+        rospy.loginfo('[%s]:  - Valve - %.2f seconds (%i%%)', self.name, time_instaces_valve.secs + time_instaces_valve.nsecs*1e-9, (time_instaces_valve/time_total)*100)
+        rospy.loginfo('[%s]:  - Pipe -- %.2f seconds (%i%%)', self.name, time_instaces_pipe.secs + time_instaces_pipe.nsecs*1e-9, (time_instaces_pipe/time_total)*100)
+        print("")
+        rospy.loginfo('[%s]: Info --------- %.2f seconds (%i%%)', self.name, time_info.secs + time_info.nsecs*1e-9, (time_info/time_total)*100)
+        rospy.loginfo('[%s]:  - Valve - %.2f seconds (%i%%)', self.name, time_info_valve.secs + time_info_valve.nsecs*1e-9, (time_info_valve/time_total)*100)
+        rospy.loginfo('[%s]:  - Pipe -- %.2f seconds (%i%%)', self.name, time_info_pipe.secs + time_info_pipe.nsecs*1e-9, (time_info_pipe/time_total)*100)
+        print("")
+        rospy.loginfo('[%s]: Refine ------- %.2f seconds (%i%%)', self.name, time_ref.secs + time_ref.nsecs*1e-9, (time_ref/time_total)*100)
+        rospy.loginfo('[%s]:  - Valve - %.2f seconds (%i%%)', self.name, time_ref_valve.secs + time_ref_valve.nsecs*1e-9, (time_ref_valve/time_total)*100)
+        rospy.loginfo('[%s]:  - Pipe -- %.2f seconds (%i%%)', self.name, time_ref_pipe.secs + time_ref_pipe.nsecs*1e-9, (time_ref_pipe/time_total)*100)
+        print("")
+        rospy.loginfo('[%s]: Publish ------ %.2f seconds (%i%%)', self.name, time_publish.secs + time_publish.nsecs*1e-9, (time_publish/time_total)*100)
 
         print(" ")
         print(" ")
