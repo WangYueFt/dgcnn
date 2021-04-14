@@ -693,9 +693,7 @@ def get_info_skeleton(instance):
             vector_chain_list.append(vector_chain)
 
         # get % points
-        mid_idx = get_position_idx(chain, 50)
-        mid = chain[mid_idx]
-
+        mid = get_position_idx1(chain, 50)
 
         info_chain = [chain, elbow_list, vector_chain_list, mid]            # //PARAM return chain or not
         #info_chain = [elbow_list, vector_chain_list, mid]            # //PARAM return chain or not
@@ -909,8 +907,7 @@ def unify_chains(chains_info, connexions_info):
                                             new_vector_chain_list.append(vector_chain)
 
                                         # get % points
-                                        mid_idx = get_position_idx(new_chain, 50)
-                                        new_mid = new_chain[mid_idx]
+                                        new_mid = get_position_idx1(new_chain, 50)
                                         
                                         # create new chain info
                                         new_chain_info = [new_chain, new_elbow_list, new_vector_chain_list, new_mid]
@@ -972,7 +969,7 @@ def get_elbows(chain):
 
 
 
-def get_position_idx(chain, percentage):
+def get_position_idx1(chain, percentage):
 
     vector_list = list()                                            
     for j in range(len(chain)-1):                                   # calculate vectors between chain links
@@ -996,7 +993,30 @@ def get_position_idx(chain, percentage):
             else:
                 position = i
             break
-    return position
+
+    percentage_point = chain[position]
+    return percentage_point
+
+
+def get_position_idx2(chain, percentage):
+
+    # TODO this method will fail if elbows are present, but is more accunate on straight lines, elow consideration could be implemented
+
+    chain_vector = chain[-1]-chain[0]                           # find chain vector
+
+    # get % point
+    percentage_vector = chain_vector * (percentage/100)
+    percentage_point = chain[0] + percentage_vector
+
+    # project % point nearest chain point
+    min_d = 999
+    for i in range(chain.shape[0]):                             
+        dist = get_distance(percentage_point, chain[i], 3)
+        if dist < min_d:
+            min_d = dist
+            percentage_point_proj = chain[i]
+
+    return percentage_point_proj                                # can also directly otput percentage_point, will not be part of chain points
 
 
 def proj_voxel(voxel, voxels, max_d):
@@ -1004,7 +1024,7 @@ def proj_voxel(voxel, voxels, max_d):
         voxel_proj = voxel                    # done
     else:
         neighbours = get_neighbours(voxel, voxels, max_d)   # get neighbours from real voxels
-        min_d = 99
+        min_d = 999
         for n in neighbours:                                # for each neighbour
             v_to_n = distance.cityblock(voxel, n)           # compute distance
             if v_to_n < min_d:                              # neighbour with min distance is selected

@@ -200,7 +200,7 @@ class Pointcloud_Seg:
         pc_np_base = np.delete(pc_np_base,6,1)  # delete class prediction
 
         # downsample prediction to 128 if its not already on 128
-        if self.points_sub != 128:                                             # //PARAM
+        if self.points_sub >= 128:                                             # //PARAM
             down = 128/self.points_sub                                         # //PARAM
             n_idx_pred_sub_down = int(pred_sub.shape[0] * down)  
             idx_pred_sub_down = np.random.choice(pred_sub.shape[0], n_idx_pred_sub_down, replace=False)
@@ -306,7 +306,7 @@ class Pointcloud_Seg:
         info2 = [info_pipes_list2, info_connexions_list2, info_valves_list]         # TODO publish info
         info3 = [info_pipes_list2, info_connexions_list2, info_valves_list2]       # TODO publish info
 
-        out = False
+        out = True
         if out == True:
             name = str(time.time())
             name = name.replace('.', '')
@@ -422,26 +422,19 @@ class Pointcloud_Seg:
         rospy.loginfo('[%s]: INFO TIMES:', self.name)	
         print("")
         rospy.loginfo('[%s]: Pc processing took %.2f seconds. Split into:', self.name, time_total.secs + time_total.nsecs*1e-9)
-        print("")
-        rospy.loginfo('[%s]: Reading ------ %.2f seconds (%i%%)', self.name, time_read.secs + time_read.nsecs*1e-9, (time_read/time_total)*100)
-        print("")
-        rospy.loginfo('[%s]: Blocks ------- %.2f seconds (%i%%)', self.name, time_blocks.secs + time_blocks.nsecs*1e-9, (time_blocks/time_total)*100)
-        print("")
-        rospy.loginfo('[%s]: Inference ---- %.2f seconds (%i%%)', self.name, time_inferference.secs + time_inferference.nsecs*1e-9, (time_inferference/time_total)*100)
-        print("")
-        rospy.loginfo('[%s]: Instances ---- %.2f seconds (%i%%)', self.name, time_instaces.secs + time_instaces.nsecs*1e-9, (time_instaces/time_total)*100)
+        rospy.loginfo('[%s]: Reading -------- %.2f seconds (%i%%)', self.name, time_read.secs + time_read.nsecs*1e-9, (time_read/time_total)*100)
+        rospy.loginfo('[%s]: Blocks --------- %.2f seconds (%i%%)', self.name, time_blocks.secs + time_blocks.nsecs*1e-9, (time_blocks/time_total)*100)
+        rospy.loginfo('[%s]: Inference ------ %.2f seconds (%i%%)', self.name, time_inferference.secs + time_inferference.nsecs*1e-9, (time_inferference/time_total)*100)
+        rospy.loginfo('[%s]: Instances ------ %.2f seconds (%i%%)', self.name, time_instaces.secs + time_instaces.nsecs*1e-9, (time_instaces/time_total)*100)
         rospy.loginfo('[%s]:  - Valve - %.2f seconds (%i%%)', self.name, time_instaces_valve.secs + time_instaces_valve.nsecs*1e-9, (time_instaces_valve/time_total)*100)
         rospy.loginfo('[%s]:  - Pipe -- %.2f seconds (%i%%)', self.name, time_instaces_pipe.secs + time_instaces_pipe.nsecs*1e-9, (time_instaces_pipe/time_total)*100)
-        print("")
-        rospy.loginfo('[%s]: Info --------- %.2f seconds (%i%%)', self.name, time_info.secs + time_info.nsecs*1e-9, (time_info/time_total)*100)
+        rospy.loginfo('[%s]: Info ----------- %.2f seconds (%i%%)', self.name, time_info.secs + time_info.nsecs*1e-9, (time_info/time_total)*100)
         rospy.loginfo('[%s]:  - Valve - %.2f seconds (%i%%)', self.name, time_info_valve.secs + time_info_valve.nsecs*1e-9, (time_info_valve/time_total)*100)
         rospy.loginfo('[%s]:  - Pipe -- %.2f seconds (%i%%)', self.name, time_info_pipe.secs + time_info_pipe.nsecs*1e-9, (time_info_pipe/time_total)*100)
-        print("")
-        rospy.loginfo('[%s]: Refine ------- %.2f seconds (%i%%)', self.name, time_ref.secs + time_ref.nsecs*1e-9, (time_ref/time_total)*100)
+        rospy.loginfo('[%s]: Refine --------- %.2f seconds (%i%%)', self.name, time_ref.secs + time_ref.nsecs*1e-9, (time_ref/time_total)*100)
         rospy.loginfo('[%s]:  - Valve - %.2f seconds (%i%%)', self.name, time_ref_valve.secs + time_ref_valve.nsecs*1e-9, (time_ref_valve/time_total)*100)
         rospy.loginfo('[%s]:  - Pipe -- %.2f seconds (%i%%)', self.name, time_ref_pipe.secs + time_ref_pipe.nsecs*1e-9, (time_ref_pipe/time_total)*100)
-        print("")
-        rospy.loginfo('[%s]: Publish ------ %.2f seconds (%i%%)', self.name, time_publish.secs + time_publish.nsecs*1e-9, (time_publish/time_total)*100)
+        rospy.loginfo('[%s]: Publish -------- %.2f seconds (%i%%)', self.name, time_publish.secs + time_publish.nsecs*1e-9, (time_publish/time_total)*100)
 
         print(" ")
         print(" ")
