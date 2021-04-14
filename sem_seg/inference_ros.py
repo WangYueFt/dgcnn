@@ -8,13 +8,12 @@ import struct
 import get_info
 import numpy as np
 from model import *
-import project_inst
+#import project_inst
 import open3d as o3d
 import indoor3d_util
 import get_instances
 from natsort import natsorted
 
-import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
 from sensor_msgs.msg import PointField

@@ -9,6 +9,13 @@ https://medium.com/repro-repo/install-cuda-and-cudnn-for-tensorflow-gpu-on-ubunt
 - cudnn: cat /usr/include/cudnn.h | grep CUDNN_MAJOR -A 2 -> #define CUDNN_MAJOR 7 #define CUDNN_MINOR 0 #define CUDNN_PATCHLEVEL 5
 - pip install tensorflow-gpu==1.14 -> esto hace que se tenga que ahcer fuera de cualquier anaconda environment
 
+- OPEN3D
+  * pip uninstall open3d open3d-python
+  * pip3 install open3d==0.12
+  * pip install numpy --upgrade  (1.19.5 works)
+  
+- conda install scikit-image
+
 # get data
 
 - rosrun pcl_ros pointcloud_to_pcd input:=/stereo_narrow/points2 (ejecutar desde el folder donde se van a guardar las pc)
