@@ -241,7 +241,7 @@ def match(source, target):
     for i in range(steps): 
         trans = np.eye(4)                                                                               # set transformation amtrix
         trans[:3,:3] = source.get_rotation_matrix_from_xyz((0,0, -(np.pi/(steps/2))*i))                 # add rotation
-        reg_p2l = o3d.pipelines.registration.evaluate_registration(source, target, threshold, trans)    # evaluate registration
+        reg_p2l = o3d.registration.evaluate_registration(source, target, threshold, trans)    # evaluate registration
         matchings.append(reg_p2l.fitness)
         #print("- matching: " + str(reg_p2l.fitness))
         #draw_registration_result(source, target, trans)
@@ -522,13 +522,21 @@ def get_info_skeleton(instance):
     voxel_grid1 = o3d.geometry.VoxelGrid.create_from_point_cloud(instance,voxel_size=0.008)     # voxelice instance //PARAM
     #print_o3d(voxel_grid1)
 
-    voxels = o3d.geometry.VoxelGrid.get_voxels(voxel_grid1)                                     # get voxels
+    voxels_list = list()
+    instance1_points = np.asarray(instance.points)
+    for p in instance1_points:
+        voxel = o3d.geometry.VoxelGrid.get_voxel(voxel_grid1, p)
+        voxels_list.append(voxel)
+    voxels_np = np.array(voxels_list)
+    voxels_np = np.unique(voxels_np, axis=0)                            # delete duplicates from room2blocks
+
+    #voxels = o3d.geometry.VoxelGrid.get_voxels(voxel_grid1)                                     # get voxels
     #print("n voxels: " + str(len(voxels)))
     #print(voxels)
 
-    voxels_np = np.zeros((len(voxels),3), dtype=int)                                            # voxels to numpy
-    for i in range(len(voxels)):
-        voxels_np[i] = voxels[i].grid_index
+    #voxels_np = np.zeros((len(voxels),3), dtype=int)                                            # voxels to numpy
+    #for i in range(len(voxels)):
+    #    voxels_np[i] = voxels[i].grid_index
     #print(voxels_np)    
 
     voxels_np.T[[0,1,2]] = voxels_np.T[[2,0,1]]                                                 # set cols as X Y Z 

@@ -34,14 +34,14 @@ class Pointcloud_Seg:
         self.fps = 2                # target fps        //PARAM
         self.period = 1/self.fps    # target period     //PARAM
         self.batch_size = 1         #                   //PARAM
-        self.points_sub = 256       #                   //PARAM
+        self.points_sub = 128       #                   //PARAM
         self.block_sub = 0.1        #                   //PARAM
         self.stride_sub = 0.1       #                   //PARAM
         self.gpu_index = 0          #                   //PARAM
         self.desired_points = int(6000/(128/self.points_sub))  # n of points to wich the received pc will be downsampled    //PARAM
 
         # get valve matching targets
-        self.targets_path = "/home/miguel/Desktop/dgcnn/valve_targets"      # //PARAM
+        self.targets_path = "/home/sparus/PIPES2/dgcnn/valve_targets"      # //PARAM
         self.targets_list = list()
         for file_name in natsorted(os.listdir(self.targets_path)):
             target_path = os.path.join(self.targets_path, file_name)
@@ -80,8 +80,8 @@ class Pointcloud_Seg:
         self.min_p_p = 60               # minimum number of points to consider a blob as a pipe     //PARAM
         self.min_p_v = 30 # 40 80 140   # minimum number of points to consider a blob as a valve    //PARAM
 
-        self.model_path = "/home/miguel/Desktop/dgcnn/sem_seg/RUNS/4_256_11_c7/model.ckpt"          # path to model         //PARAM
-        self.path_cls = "/home/miguel/Desktop/dgcnn/sem_seg/RUNS/4_256_11_c7/cls.txt"               # path to clases info   //PARAM
+        self.model_path = "/home/sparus/PIPES2/dgcnn/sem_seg/RUNS/4_128_11_c9/model.ckpt"          # path to model         //PARAM
+        self.path_cls = "/home/sparus/PIPES2/dgcnn/sem_seg/RUNS/4_128_11_c9/cls.txt"               # path to clases info   //PARAM
         self.classes, self.labels, self.label2color = indoor3d_util.get_info_classes(self.path_cls) # get classes info
 
         self.init = False
@@ -91,8 +91,8 @@ class Pointcloud_Seg:
         pc_sub = message_filters.Subscriber('/stereo_down/scaled_x2/points2_filtered', PointCloud2)     # //PARAM
         #pc_sub = message_filters.Subscriber('/stereo_down/scaled_x2/points2', PointCloud2)             # //PARAM
         info_sub = message_filters.Subscriber('/stereo_down/left/camera_info', CameraInfo)
-        ts_image = message_filters.TimeSynchronizer([pc_sub, info_sub], 10)
-        ts_image.registerCallback(self.cb_pc)
+        #ts_image = message_filters.TimeSynchronizer([pc_sub, info_sub], 10)
+        pc_sub.registerCallback(self.cb_pc)
 
         # Set class image publishers
         self.pub_pc_base = rospy.Publisher("/stereo_down/scaled_x2/points2_base", PointCloud2, queue_size=4)
@@ -102,9 +102,9 @@ class Pointcloud_Seg:
         # Set segmentation timer
         rospy.Timer(rospy.Duration(self.period), self.run)
 
-    def cb_pc(self, pc, info):
+    def cb_pc(self, pc):
         self.pc = pc
-        self.cam_info = info
+        #self.cam_info = info
         self.new_pc = True
 
     def set_model(self):
@@ -310,11 +310,11 @@ class Pointcloud_Seg:
         if out == True:
             name = str(time.time())
             name = name.replace('.', '')
-            path_out1 = os.path.join("/home/miguel/Desktop/test_out_info_from_ros", name+"_1.ply")
+            path_out1 = os.path.join("/home/sparus/PIPES2/out_ros", name+"_1.ply")
             get_info.info_to_ply(info1, path_out1)
-            path_out2 = os.path.join("/home/miguel/Desktop/test_out_info_from_ros", name+"_2.ply")
+            path_out2 = os.path.join("/home/sparus/PIPES2/out_ros", name+"_2.ply")
             get_info.info_to_ply(info2, path_out2)
-            path_out3 = os.path.join("/home/miguel/Desktop/test_out_info_from_ros", name+"_3.ply")
+            path_out3 = os.path.join("/home/sparus/PIPES2/out_ros", name+"_3.ply")
             get_info.info_to_ply(info3, path_out3)
 
 
