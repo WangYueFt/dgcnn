@@ -1,7 +1,7 @@
 # Dynamic Graph CNN for Learning on Point Clouds
 We propose a new neural network module dubbed EdgeConv suitable for CNN-based high-level tasks on point clouds including classification and segmentation. EdgeConv is differentiable and can be plugged into existing architectures.
 
-[[Project]](https://liuziwei7.github.io/projects/DGCNN) [[Paper]](https://arxiv.org/abs/1801.07829)     
+[[Project]](https://liuziwei7.github.io/projects/DGCNN) [[Paper]](https://arxiv.org/abs/1801.07829) [[Press]](http://news.mit.edu/2019/deep-learning-point-clouds-1021)
 
 ## Overview
 `DGCNN` is the author's re-implementation of Dynamic Graph CNN, which achieves state-of-the-art performance on point-cloud-related high-level tasks including category classification, semantic segmentation and part segmentation.
@@ -20,6 +20,19 @@ The classification experiments in our paper are done with the pytorch implementa
 ## Other Implementations
 * [pytorch-geometric](https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html#torch_geometric.nn.conv.EdgeConv)
 * [pytorch-dgcnn](https://github.com/AnTao97/dgcnn.pytorch) (This implementation on S3DIS achieves significant better results than our tensorflow implementation)
+
+## Generalization under Corruptions
+
+The performance is evaluated on [ModelNet-C](https://github.com/jiawei-ren/ModelNet-C) with mCE (lower is better) and clean OA (higher is better).
+
+| Method          | Reference                                                  | Standalone |  mCE  | Clean OA |
+| --------------- | ---------------------------------------------------------- | :--------: | :---: | :------: |
+| PointNet        | [Qi et al.](https://arxiv.org/abs/1612.00593)              |     Yes    | 1.422 |   0.907  |
+| DGCNN           | [Wang et al.](https://arxiv.org/abs/1801.07829)            |     Yes    | 1.000 |   0.926  |
+
+
+## Real-World Applications
+* DGCNN has been successfully applied to [ParticalNet in Large Hadron Collider (LHC)](https://arxiv.org/abs/1902.08570).
 
 
 ## Citation
