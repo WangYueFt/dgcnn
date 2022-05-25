@@ -11,19 +11,21 @@ sys.path.append(os.path.join(BASE_DIR, '../models'))
 import tf_util
 
 def placeholder_inputs(batch_size, num_point):
-  pointclouds_pl = tf.placeholder(tf.float32,
+  pointclouds_pl = tf.compat.v1.placeholder(tf.float32,
                    shape=(batch_size, num_point, 9))
-  labels_pl = tf.placeholder(tf.int32,
+  labels_pl = tf.compat.v1.placeholder(tf.int32,
                 shape=(batch_size, num_point))
   return pointclouds_pl, labels_pl
 
 def get_model(point_cloud, is_training, bn_decay=None):
   """ ConvNet baseline, input is BxNx9 gray image """
-  batch_size = point_cloud.get_shape()[0].value
-  num_point = point_cloud.get_shape()[1].value
+  batch_size = point_cloud.get_shape()[0]
+  num_point = point_cloud.get_shape()[1]
   input_image = tf.expand_dims(point_cloud, -1)
 
   k = 20
+
+  weight_decay = 0.0
 
   adj = tf_util.pairwise_distance(point_cloud[:, :, 6:])
   nn_idx = tf_util.knn(adj, k=k) # (batch, num_points, k)
@@ -39,7 +41,7 @@ def get_model(point_cloud, is_training, bn_decay=None):
                        bn=True, is_training=is_training, weight_decay=weight_decay,
                        scope='adj_conv2', bn_decay=bn_decay, is_dist=True)
 
-  net_1 = tf.reduce_max(out2, axis=-2, keep_dims=True)
+  net_1 = tf.compat.v1.reduce_max(out2, axis=-2, keep_dims=True)
 
 
 
@@ -57,7 +59,7 @@ def get_model(point_cloud, is_training, bn_decay=None):
                        bn=True, is_training=is_training, weight_decay=weight_decay,
                        scope='adj_conv4', bn_decay=bn_decay, is_dist=True)
   
-  net_2 = tf.reduce_max(out4, axis=-2, keep_dims=True)
+  net_2 = tf.compat.v1.reduce_max(out4, axis=-2, keep_dims=True)
   
   
 
@@ -75,7 +77,7 @@ def get_model(point_cloud, is_training, bn_decay=None):
   #                      bn=True, is_training=is_training, weight_decay=weight_decay,
   #                      scope='adj_conv6', bn_decay=bn_decay, is_dist=True)
 
-  net_3 = tf.reduce_max(out5, axis=-2, keep_dims=True)
+  net_3 = tf.compat.v1.reduce_max(out5, axis=-2, keep_dims=True)
 
 
 
